@@ -75,15 +75,3 @@ POLLEN_TYPES = [
     "Birke", "Graeser", "Roggen", "Erle",
     "Hasel", "Esche", "Ambrosia", "Beifuss", "Eiche",
 ]
-
-# Mapping: official Kreisname → DWD region_name / partregion_name
-# Add your region here if DWD uses a different name.
-POLLEN_REGION_MAPPING: dict[str, str] = {
-    "Rheinisch-Bergischer Kreis": "Rhein.-Westfäl. Tiefland",
-    "Oberbergischer Kreis":       "Rhein.-Westfäl. Tiefland",
-    "Märkischer Kreis":           "Rhein.-Westfäl. Tiefland",
-    "Ennepe-Ruhr-Kreis":          "Rhein.-Westfäl. Tiefland",
-    "Wuppertal":                  "Rhein.-Westfäl. Tiefland",
-    "Remscheid":                  "Rhein.-Westfäl. Tiefland",
-    "Solingen":                   "Rhein.-Westfäl. Tiefland",
-}
