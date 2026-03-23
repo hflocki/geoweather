@@ -1,0 +1,52 @@
+<svg width="512" height="512" viewBox="0 0 680 680" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <clipPath id="circle-clip"><circle cx="340" cy="340" r="300"/></clipPath>
+  <style>
+    .bg-deep{fill:#0e1e3a}.bg-mid{fill:#12305e}.sky-glow{fill:#1a4a8a}
+    .land{fill:#1c5e3a}.land-dark{fill:#144d2e}.road{fill:#2a2a2a}.road-line{fill:#e8c84a}
+    .pin-body{fill:#e8c84a}.pin-hole{fill:#0e1e3a}
+    .ring1{fill:none;stroke:#1e5fa8;stroke-width:18;opacity:.35}
+    .ring2{fill:none;stroke:#2478d4;stroke-width:12;opacity:.45}
+    .ring3{fill:none;stroke:#3d9ef5;stroke-width:7;opacity:.55}
+    .cloud{fill:#e8f4ff;opacity:.92}.cloud-sm{fill:#d0e8ff;opacity:.75}
+    .star{fill:#c8deff}.pollen{fill:#f0c842;opacity:.8}
+    .warn{fill:#e05a2b}.warn-text{fill:#fff;font-family:sans-serif;font-weight:700;font-size:22px}
+    .border-ring{fill:none;stroke:#3d9ef5;stroke-width:6}
+  </style>
+</defs>
+<g clip-path="url(#circle-clip)">
+  <circle cx="340" cy="340" r="310" class="bg-deep"/>
+  <ellipse cx="340" cy="260" rx="320" ry="280" class="sky-glow"/>
+  <circle cx="200" cy="160" r="3" class="star"/><circle cx="480" cy="120" r="2.5" class="star"/>
+  <circle cx="560" cy="200" r="2" class="star"/><circle cx="130" cy="220" r="2" class="star"/>
+  <circle cx="530" cy="155" r="3" class="star"/><circle cx="290" cy="100" r="2" class="star"/>
+  <circle cx="420" cy="90" r="2" class="star"/>
+  <circle cx="340" cy="340" r="240" class="ring1"/>
+  <circle cx="340" cy="340" r="175" class="ring2"/>
+  <circle cx="340" cy="340" r="115" class="ring3"/>
+  <ellipse cx="340" cy="580" rx="340" ry="130" class="land-dark"/>
+  <ellipse cx="340" cy="560" rx="340" ry="120" class="land"/>
+  <rect x="280" y="420" width="120" height="220" rx="4" class="road"/>
+  <rect x="332" y="440" width="16" height="30" rx="2" class="road-line"/>
+  <rect x="332" y="490" width="16" height="30" rx="2" class="road-line"/>
+  <rect x="332" y="540" width="16" height="30" rx="2" class="road-line"/>
+  <path d="M80 520 Q120 480 160 510 Q180 520 200 510 Q240 490 260 510 L260 650 L80 650 Z" class="land-dark"/>
+  <path d="M430 530 Q470 495 510 520 Q540 535 560 515 Q590 498 620 520 L620 650 L430 650 Z" class="land-dark"/>
+  <ellipse cx="210" cy="320" rx="52" ry="18" class="cloud"/>
+  <ellipse cx="240" cy="308" rx="38" ry="24" class="cloud"/>
+  <ellipse cx="175" cy="314" rx="30" ry="20" class="cloud"/>
+  <ellipse cx="490" cy="290" rx="40" ry="14" class="cloud-sm"/>
+  <ellipse cx="515" cy="281" rx="28" ry="18" class="cloud-sm"/>
+  <ellipse cx="464" cy="285" rx="22" ry="15" class="cloud-sm"/>
+  <circle cx="312" cy="304" r="4" class="pollen"/><circle cx="368" cy="288" r="3" class="pollen"/>
+  <circle cx="295" cy="272" r="3.5" class="pollen"/><circle cx="385" cy="310" r="2.5" class="pollen"/>
+  <circle cx="345" cy="260" r="3" class="pollen"/><circle cx="325" cy="240" r="2" class="pollen"/>
+  <circle cx="400" cy="250" r="2.5" class="pollen"/>
+  <ellipse cx="340" cy="362" rx="44" ry="18" fill="#0e1e3a" opacity=".45"/>
+  <path d="M340 180 C310 180 285 205 285 236 C285 278 340 340 340 340 C340 340 395 278 395 236 C395 205 370 180 340 180 Z" class="pin-body"/>
+  <circle cx="340" cy="236" r="18" class="pin-hole"/>
+  <rect x="452" y="178" width="52" height="52" rx="10" class="warn"/>
+  <text x="478" y="215" text-anchor="middle" class="warn-text">!</text>
+</g>
+<circle cx="340" cy="340" r="300" class="border-ring"/>
+</svg>
