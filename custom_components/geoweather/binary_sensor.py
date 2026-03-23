@@ -44,12 +44,12 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
     def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
         self._coordinator = coordinator
         self._entry = entry
-        self._attr_name = "GeoWeather fährt"
+        self._attr_name = "Fährt"
         self._attr_unique_id = f"{entry.entry_id}_moving"
 
     @property
     def icon(self) -> str:
-        return "mdi:rv-truck" if self._attr_is_on else "mdi:parking"
+        return "mdi:rv-truck" if self.is_on else "mdi:parking"
 
     def _cfg(self, key, default=None):
         merged = {**self._entry.data, **self._entry.options}
@@ -62,22 +62,26 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
         if state is None or state.state in ("unknown", "unavailable", ""):
             return None
         try:
-            return float(state.state.replace(",", "."))
-        except ValueError:
+            return float(str(state.state).replace(",", "."))
+        except (ValueError, TypeError):
             return None
 
-@property
+    @property
     def is_on(self) -> bool:
         """ON wenn Fahrzeug fährt (Speed > Schwellenwert)."""
         speed_entity = self._entry.data.get(CONF_SPEED_SENSOR)
         state = self.hass.states.get(speed_entity)
         
         try:
-            speed = float(state.state.replace(",", ".")) if state and state.state not in ("unknown", "unavailable") else 0
+            if state and state.state not in ("unknown", "unavailable"):
+                speed = float(str(state.state).replace(",", "."))
+            else:
+                speed = 0
         except (ValueError, TypeError):
             speed = 0
 
-        threshold = float(self._entry.options.get(CONF_SPEED_THRESHOLD, self._entry.data.get(CONF_SPEED_THRESHOLD, 5.0)))
+        # Schwellenwert aus Optionen oder Data (Standard 5.0)
+        threshold = float(self._cfg(CONF_SPEED_THRESHOLD, 5.0))
         return speed > threshold
 
     @property
@@ -94,10 +98,10 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
             "hoehe_m":              altitude,
             "satelliten":           satellites,
             "min_satelliten":       min_sats,
-            "gps_fix_ok":           (satellites is not None and satellites >= min_sats)
-                                    if satellites is not None else None,
-            "letzter_skip_grund":   self._coordinator.last_skip_reason,
+            "gps_fix_ok":           (satellites >= min_sats) if satellites is not None else None,
+            "letzter_skip_grund":   getattr(self._coordinator, 'last_skip_reason', None),
         }
 
     async def async_update(self) -> None:
         """State is computed live from sensor – nothing to fetch."""
+        pass
