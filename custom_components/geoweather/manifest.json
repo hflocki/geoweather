@@ -1,0 +1,12 @@
+{
+  "domain": "geoweather",
+  "name": "GeoWeather",
+  "config_flow": true,
+  "documentation": "https://github.com/hflocki/geoweather",
+  "issue_tracker": "https://github.com/hflocki/geoweather/issues",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@hflocki"],
+  "version": "2.0.0",
+  "iot_class": "cloud_polling"
+}

@@ -1,0 +1,44 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "GeoWeather einrichten",
+        "description": "Wähle die GPS-Sensoren deines Geräts. Breitengrad, Längengrad und Geschwindigkeit sind Pflichtfelder. Höhe und Satelliten sind optional, verbessern aber die Zuverlässigkeit.",
+        "data": {
+          "lat_sensor":       "Breitengrad-Sensor (latitude)",
+          "lon_sensor":       "Längengrad-Sensor (longitude)",
+          "speed_sensor":     "Geschwindigkeits-Sensor (speed km/h)",
+          "alt_sensor":       "Höhen-Sensor (altitude) – optional",
+          "sat_sensor":       "Satelliten-Sensor (satellites) – optional",
+          "speed_threshold":  "Ab dieser Geschwindigkeit gilt das Fahrzeug als fahrend (km/h)",
+          "min_satellites":   "Mindestanzahl Satelliten für einen gültigen GPS-Fix"
+        }
+      }
+    },
+    "error": {
+      "invalid_speed":       "Geschwindigkeitsschwelle muss ≥ 0 km/h sein.",
+      "invalid_satellites":  "Mindestens 1 Satellit erforderlich."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "GeoWeather – Optionen",
+        "data": {
+          "speed_threshold": "Ab dieser Geschwindigkeit gilt das Fahrzeug als fahrend (km/h)",
+          "min_satellites":  "Mindestanzahl Satelliten für einen gültigen GPS-Fix"
+        }
+      }
+    },
+    "error": {
+      "invalid_speed":       "Geschwindigkeitsschwelle muss ≥ 0 km/h sein.",
+      "invalid_satellites":  "Mindestens 1 Satellit erforderlich."
+    }
+  },
+  "services": {
+    "update": {
+      "name": "Standort & Wetter aktualisieren",
+      "description": "Ruft alle DWD-APIs erneut ab (Standort, Warnungen, Pollenflug). Wird ignoriert, wenn der GeoWeather fährt oder der GPS-Fix unzureichend ist."
+    }
+  }
+}
