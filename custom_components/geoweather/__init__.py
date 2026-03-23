@@ -31,8 +31,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Reload integration when options change (speed threshold / min satellites)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    return True
 
     _LOGGER.info("GeoWeather loaded (entry %s)", entry.entry_id)
     return True
