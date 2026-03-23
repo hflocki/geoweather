@@ -1,3 +1,9 @@
+![GeoWeather Banner](images/banner.svg)
+
+<p align="center">
+  <img src="images/icon.svg" width="120" height="120" alt="GeoWeather Icon"/>
+</p>
+
 # GeoWeather 🚐🌦️
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
