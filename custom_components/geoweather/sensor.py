@@ -37,7 +37,7 @@ class _GeoWeatherBaseSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def _data(self) -> dict:
-        """Holt die Daten aus dem Coordinator."""
+        """Sicherer Zugriff auf die Coordinator-Daten."""
         return self.coordinator.data if self.coordinator.data else {}
 
 # ── Sensor 1: Standort ────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ class GeoWeatherPollenSensor(_GeoWeatherBaseSensor):
         if not p:
             return "Keine Daten"
         
-        # Den höchsten Wert aller Pollentypen für heute ermitteln
+        # Höchsten Wert der heute-Pollen finden
         vals = [v for v in p.values() if isinstance(v, int)]
         return max(vals) if vals else 0
 
@@ -93,7 +93,6 @@ class GeoWeatherPollenSensor(_GeoWeatherBaseSensor):
             "dwd_region": self._data.get("dwd_region"),
             "zuletzt_aktualisiert": self._data.get("last_updated"),
         }
-        # Alle Pollenwerte als einzelne Attribute hinzufügen
         if p:
             attrs.update(p)
         return attrs
