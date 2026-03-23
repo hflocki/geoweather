@@ -282,16 +282,23 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
-def _parse_pollen(val) -> int | None:
-    """Convert DWD values like '0-1' or '1' to int (upper bound). None = no data."""
+def _parse_pollen(val) -> int:
+    """Wandelt DWD-Werte wie '0-1' sicher in Zahlen um. Verhindert JSON-Fehler."""
     if val is None:
-        return None
-    s = str(val).strip()
-    if s in ("-1", "", "nan"):
-        return None
+        return 0
+    
+    # In String umwandeln und säubern
+    s = str(val).strip().lower()
+    
+    # Ungültige Texte abfangen
+    if s in ("-1", "", "nan", "keine daten", "null", "none", "unknown"):
+        return 0
+        
     try:
-        if "-" in s:
-            return int(s.split("-")[-1])
+        # Falls es ein Bereich ist (z.B. 0-1), nimm die hintere Zahl
+        if '-' in s:
+            return int(s.split('-')[-1])
+        # Falls es eine Kommazahl ist, erst zu float, dann zu int
         return int(float(s))
     except (ValueError, TypeError):
-        return None
+        return 0
