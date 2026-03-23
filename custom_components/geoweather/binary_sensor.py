@@ -66,12 +66,18 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
         except ValueError:
             return None
 
-    @property
+@property
     def is_on(self) -> bool:
-        speed = self._float(self._cfg(CONF_SPEED_SENSOR))
-        if speed is None:
-            return False
-        threshold = float(self._cfg(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD))
+        """ON wenn Fahrzeug fährt (Speed > Schwellenwert)."""
+        speed_entity = self._entry.data.get(CONF_SPEED_SENSOR)
+        state = self.hass.states.get(speed_entity)
+        
+        try:
+            speed = float(state.state.replace(",", ".")) if state and state.state not in ("unknown", "unavailable") else 0
+        except (ValueError, TypeError):
+            speed = 0
+
+        threshold = float(self._entry.options.get(CONF_SPEED_THRESHOLD, self._entry.data.get(CONF_SPEED_THRESHOLD, 5.0)))
         return speed > threshold
 
     @property
