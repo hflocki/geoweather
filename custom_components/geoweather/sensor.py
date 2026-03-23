@@ -1,98 +1,55 @@
-"""Sensors for GeoWeather – all backed by the coordinator."""
+"""Sensors for GeoWeather."""
 from __future__ import annotations
-
-import logging
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
 from .const import DOMAIN
-from .coordinator import GeoWeatherCoordinator
 
-_LOGGER = logging.getLogger(__name__)
-
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    coordinator: GeoWeatherCoordinator = hass.data[DOMAIN][entry.entry_id]
+async def async_setup_entry(hass, entry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([
         GeoWeatherLocationSensor(coordinator, entry),
         GeoWeatherPollenSensor(coordinator, entry),
     ])
 
-# ── Base ──────────────────────────────────────────────────────────────────────
-
-class _GeoWeatherBaseSensor(CoordinatorEntity, SensorEntity):
-    """Gemeinsame Basis für alle GeoWeather Sensoren."""
-
+class GeoWeatherLocationSensor(CoordinatorEntity, SensorEntity):
     _attr_has_entity_name = True
-
-    def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
-        self._entry = entry
-
-    @property
-    def _data(self) -> dict:
-        """Sicherer Zugriff auf die Coordinator-Daten."""
-        return self.coordinator.data if self.coordinator.data else {}
-
-# ── Sensor 1: Standort ────────────────────────────────────────────────────────
-
-class GeoWeatherLocationSensor(_GeoWeatherBaseSensor):
-    """Zeigt die aktuelle Gemeinde und den Kreis an."""
-
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry)
-        self._attr_name = "GeoWeather Standort"
+        super().__init__(coordinator)
+        self._attr_name = "Standort"
         self._attr_unique_id = f"{entry.entry_id}_location"
         self._attr_icon = "mdi:map-marker-radius"
 
     @property
-    def native_value(self) -> str | None:
-        loc = self._data.get("location", {})
-        return loc.get("gemeinde", "Warte auf Update")
+    def native_value(self):
+        return self.coordinator.data.get("location", {}).get("gemeinde", "Unbekannt") if self.coordinator.data else "Warte..."
 
     @property
-    def extra_state_attributes(self) -> dict:
-        loc = self._data.get("location", {})
+    def extra_state_attributes(self):
+        if not self.coordinator.data: return {}
+        loc = self.coordinator.data.get("location", {})
         return {
-            "gemeinde": loc.get("gemeinde"),
             "kreis": loc.get("kreis"),
-            "zuletzt_aktualisiert": self._data.get("last_updated"),
+            "aktualisiert": self.coordinator.data.get("last_updated")
         }
 
-# ── Sensor 2: Pollenflug ──────────────────────────────────────────────────────
-
-class GeoWeatherPollenSensor(_GeoWeatherBaseSensor):
-    """Höchste heutige Pollenbelastung."""
-
+class GeoWeatherPollenSensor(CoordinatorEntity, SensorEntity):
+    _attr_has_entity_name = True
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry)
-        self._attr_name = "GeoWeather Pollenflug"
+        super().__init__(coordinator)
+        self._attr_name = "Pollenflug"
         self._attr_unique_id = f"{entry.entry_id}_pollen"
         self._attr_icon = "mdi:flower-pollen"
 
     @property
-    def native_value(self) -> int | str:
-        p = self._data.get("pollen", {})
-        if not p:
-            return "Keine Daten"
-        
-        # Höchsten Wert der heute-Pollen finden
+    def native_value(self):
+        if not self.coordinator.data: return 0
+        p = self.coordinator.data.get("pollen", {})
         vals = [v for v in p.values() if isinstance(v, int)]
         return max(vals) if vals else 0
 
     @property
-    def extra_state_attributes(self) -> dict:
-        p = self._data.get("pollen", {})
-        attrs = {
-            "dwd_region": self._data.get("dwd_region"),
-            "zuletzt_aktualisiert": self._data.get("last_updated"),
-        }
-        if p:
-            attrs.update(p)
+    def extra_state_attributes(self):
+        if not self.coordinator.data: return {}
+        attrs = {"region": self.coordinator.data.get("dwd_region")}
+        attrs.update(self.coordinator.data.get("pollen", {}))
         return attrs
