@@ -12,7 +12,7 @@ CONF_SPEED_THRESHOLD  = "speed_threshold"
 CONF_MIN_SATELLITES   = "min_satellites"
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
-DEFAULT_SPEED_THRESHOLD = 2.0   # km/h  – above this = moving
+DEFAULT_SPEED_THRESHOLD = 5.0   # km/h  – above this = moving
 DEFAULT_MIN_SATELLITES  = 4     # below this = bad GPS fix
 
 # ── Service name ─────────────────────────────────────────────────────────────
