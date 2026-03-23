@@ -76,33 +76,44 @@ automatically skipped when:
 ### Example Automation
 
 ```yaml
-# Update every 30 minutes while stationary
-automation:
-  alias: "GeoWeather – periodisch aktualisieren"
+- alias: "GeoWeather – periodisch aktualisieren"
+  id: geoweather_periodic_update
   trigger:
     - platform: time_pattern
-      minutes: "/30"
+      minutes: "/60"
+    - platform: state
+      entity_id: binary_sensor.geoweather_faehrt
+      from: "on"
+      to: "off"
   condition:
     - condition: state
       entity_id: binary_sensor.geoweather_faehrt
       state: "off"
   action:
     - service: geoweather.update
+      data: {}
 ```
 
 ```yaml
-# Update when GPS position changes significantly
-automation:
-  alias: "GeoWeather – nach Positionswechsel"
+- alias: "GeoWeather – nach Positionswechsel"
+  id: geoweather_position_change
   trigger:
     - platform: state
       entity_id: sensor.my_gps_latitude
   condition:
+    # 1. Wir müssen stehen
     - condition: state
       entity_id: binary_sensor.geoweather_faehrt
       state: "off"
+    # 2. Nur wenn sich der Wert wirklich geändert hat (nicht nur Zeitstempel)
+    - condition: template
+      value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
+    # 3. Optional: Nur wenn die Änderung groß genug ist (ca. 1km = 0.01 Grad)
+    - condition: template
+      value_template: "{{ (trigger.from_state.state | float - trigger.to_state.state | float) | abs > 0.01 }}"
   action:
     - service: geoweather.update
+      data: {}
 ```
 
 ---
