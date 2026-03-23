@@ -48,7 +48,7 @@ During setup you select your GPS sensors:
 | Speed sensor | ✅ | km/h – used for moving detection |
 | Altitude sensor | ➖ | Optional – shown in attributes |
 | Satellites sensor | ➖ | Optional – enables GPS fix quality check |
-| Speed threshold | ➖ | Default: 2.0 km/h – above = moving |
+| Speed threshold | ➖ | Default: 5.0 km/h – above = moving |
 | Min. satellites | ➖ | Default: 4 – below = bad fix, skip update |
 
 Works with **any** GPS source: ESPHome, GPSd, MQTT tracker, phone, etc.
