@@ -1,0 +1,10 @@
+# GeoWeather Pollen Mapping
+# Format: "Offizieller Kreisname": "DWD Region"
+
+"Rheinisch-Bergischer Kreis": "Rhein.-Westfäl. Tiefland"
+"Oberbergischer Kreis": "Rhein.-Westfäl. Tiefland"
+"Märkischer Kreis": "Rhein.-Westfäl. Tiefland"
+"Ennepe-Ruhr-Kreis": "Rhein.-Westfäl. Tiefland"
+"Wuppertal": "Rhein.-Westfäl. Tiefland"
+"Remscheid": "Rhein.-Westfäl. Tiefland"
+"Solingen": "Rhein.-Westfäl. Tiefland"
