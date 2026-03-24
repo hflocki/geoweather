@@ -77,6 +77,7 @@ automatically skipped when:
 - Vehicle is moving (speed > threshold)
 - GPS fix is insufficient (satellites < minimum)
 
+---
 
 ## Pollenflug-Belastungsstufen
 
@@ -92,6 +93,9 @@ Die Integration liefert die präzisen Stufen des DWD. In Dashboards sollte bei Z
 | **2-3** | Mittel bis hoch | Starke Belastung, Aufenthalt im Freien einschränken. |
 | **3** | Stark | Maximale Warnstufe. |
 
+---
+
+
 ## Pollen Region Mapping
 
 Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Harz"). 
@@ -103,9 +107,9 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
 "Dein Kreisname": "Offizieller DWD Regionsname"
 "Landkreis Harz": "Harz"
 "München": "Allgäu/Oberbayern/Bay. Wald"
+```
 ---
 
-```
 
 ### Example Automation
 
@@ -149,6 +153,8 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
     - service: geoweather.update
       data: {}
 ```
+---
+
 
 ### Example Card
 
@@ -214,8 +220,8 @@ styles:
           return (val >= 2) ? 'white' : 'var(--primary-text-color)';
         ]]]
 ```
-
 ---
+
 
 ## Credits
 
