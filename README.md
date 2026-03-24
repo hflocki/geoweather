@@ -6,6 +6,11 @@
 
 # GeoWeather 🚐🌦️
 
+<p align="center">
+  <img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS Custom">
+  <img src="https://img.shields.io/github/v/release/hflocki/geoweather" alt="Latest Release">
+</p>
+
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2023.6%2B-blue)](https://www.home-assistant.io)
 
