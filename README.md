@@ -105,9 +105,9 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
 "München": "Allgäu/Oberbayern/Bay. Wald"
 ---
 
-### Example Automation
 ```
 
+### Example Automation
 
 ```yaml
 - alias: "GeoWeather – periodisch aktualisieren"
