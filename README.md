@@ -1,4 +1,4 @@
-<img src="brands/icon.png" alt="GeoWeather Logo" width="150">
+<img src="logo/icon.png" alt="GeoWeather Logo" width="150">
 
 <div align="center">
   <h1>GeoWeather</h1>
