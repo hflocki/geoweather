@@ -1,7 +1,6 @@
-![GeoWeather Banner](brands/logo.png)
+<img src="brands/icon.png" alt="GeoWeather Logo" width="150">
 
 <div align="center">
-  <img src="brands/icon.png" alt="GeoWeather Logo" width="150">
   <h1>GeoWeather</h1>
 
   <p>
