@@ -12,70 +12,65 @@
   </p>
 </div>
 
-A Home Assistant custom integration that uses your vehicle's GPS coordinates to fetch
-live data from the **German Weather Service (DWD)**:
+Eine benutzerdefinierte Home Assistant Integration, die die GPS-Koordinaten deines Fahrzeugs nutzt, um Live-Daten vom **Deutschen Wetterdienst (DWD)** abzurufen:
 
-- 📍 Current location (Gemeinde / Kreis / Bundesland / WarnCellID)
-- ⛈️ Active weather warnings (with severity, type, time range)
-- 🌿 Pollen forecast (today / tomorrow / day-after, 9 pollen types)
-- 🚗 Moving detection via GPS speed sensor (skips API calls while driving)
+- 📍 **Aktueller Standort:** Gemeinde / Kreis / Bundesland / WarnCellID
+- ⛈️ **Wetterwarnungen:** Aktive Warnungen mit Schweregrad, Typ und Zeitraum
+- 🌿 **Pollenflug-Vorhersage:** Heute / Morgen / Übermorgen für 9 Pollenarten
+- 🚗 **Fahrt-Erkennung:** Automatische Pausierung von API-Aufrufen während der Fahrt via GPS-Geschwindigkeitssensor
 
-> **Philosophy:** No polling timer. You control when data is fetched by calling
-> the `geoweather.update` service from your own Automations.
+> **Philosophie:** Kein fester Abruf-Timer. Du kontrollierst, wann Daten abgerufen werden, indem du den Dienst `geoweather.update` über deine eigenen Automatisierungen aufrufst.
 
 ---
 
-## Installation via HACS
+## Installation über HACS
 
-1. Open HACS → **Integrations** → ⋮ → *Custom repositories*
-2. Add `https://github.com/hflocki/geoweather` as type **Integration**
-3. Install **GeoWeather**
-4. Restart Home Assistant
-5. Go to **Settings → Integrations → Add Integration → GeoWeather**
+1. Öffne HACS → **Integrationen** → ⋮ → **Benutzerdefinierte Repositories**
+2. Füge `https://github.com/hflocki/geoweather` als Typ **Integration** hinzu
+3. Installiere **GeoWeather**
+4. Starte Home Assistant neu
+5. Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen → GeoWeather**
 
-## Manual Installation
+## Manuelle Installation
 
-Copy the `custom_components/geoweather/` folder into your
-`config/custom_components/` directory, then restart Home Assistant.
+Kopiere den Ordner `custom_components/geoweather/` in dein `config/custom_components/` Verzeichnis und starte Home Assistant neu.
 
 ---
 
-## Configuration
+## Konfiguration
 
-During setup you select your GPS sensors:
+Während der Einrichtung wählst du deine GPS-Sensoren aus:
 
-| Field | Required | Description |
+| Feld | Erforderlich | Beschreibung |
 |---|---|---|
-| Latitude sensor | ✅ | e.g. `sensor.my_gps_latitude` |
-| Longitude sensor | ✅ | e.g. `sensor.my_gps_longitude` |
-| Speed sensor | ✅ | km/h – used for moving detection |
-| Altitude sensor | ➖ | Optional – shown in attributes |
-| Satellites sensor | ➖ | Optional – enables GPS fix quality check |
-| Speed threshold | ➖ | Default: 5.0 km/h – above = moving |
-| Min. satellites | ➖ | Default: 4 – below = bad fix, skip update |
+| Breitengrad-Sensor (Lat) | ✅ | z.B. `sensor.mein_gps_latitude` |
+| Längengrad-Sensor (Lon) | ✅ | z.B. `sensor.mein_gps_longitude` |
+| Geschwindigkeits-Sensor | ✅ | km/h – wird für die Fahrt-Erkennung genutzt |
+| Höhen-Sensor | ➖ | Optional – wird in den Attributen angezeigt |
+| Satelliten-Sensor | ➖ | Optional – ermöglicht Prüfung der GPS-Fix-Qualität |
+| Geschwindigkeits-Schwellenwert | ➖ | Standard: 5.0 km/h – darüber = Fahrzeug fährt |
+| Min. Satelliten | ➖ | Standard: 4 – darunter = schlechter Fix, Update überspringen |
 
-Works with **any** GPS source: ESPHome, GPSd, MQTT tracker, phone, etc.
-
+Funktioniert mit **jeder** GPS-Quelle: ESPHome, GPSd, MQTT-Tracker, Smartphone, etc.
 
 ---
 
-## Entities
+## Entitäten
 
-| Entity | Description |
+| Entität | Beschreibung |
 |---|---|
-| `sensor.geoweather_standort` | Current Gemeinde (state) + Kreis, Bundesland, WarnCellID |
-| `sensor.geoweather_dwd_warnungen` | Active warnings count (state) + full warning list |
-| `sensor.geoweather_pollenflug` | Highest pollen level today (state) + all 9 types × 3 days |
-| `binary_sensor.geoweather_faehrt` | `on` = moving, `off` = stationary |
+| `sensor.geoweather_standort` | Aktuelle Gemeinde (Zustand) + Kreis, Bundesland, WarnCellID |
+| `sensor.geoweather_dwd_warnungen` | Anzahl aktiver Warnungen (Zustand) + vollständige Liste in Attributen |
+| `sensor.geoweather_pollenflug` | Höchste Belastung heute (Zustand) + alle 9 Arten × 3 Tage |
+| `binary_sensor.geoweather_faehrt` | `on` = in Fahrt (Updates pausiert), `off` = Fahrzeug steht |
 
 ---
 
-## Service: `geoweather.update`
+## Dienst: `geoweather.update`
 
-Triggers a fresh fetch of all DWD data. Safe to call at any time –
-automatically skipped when:
-- Vehicle is moving (speed > threshold)
-- GPS fix is insufficient (satellites < minimum)
+Löst einen frischen Abruf aller DWD-Daten aus. Kann jederzeit sicher aufgerufen werden – wird automatisch übersprungen, wenn:
+- Das Fahrzeug fährt (Geschwindigkeit > Schwellenwert)
+- Der GPS-Fix unzureichend ist (Satelliten < Minimum)
 
 ---
 
@@ -111,7 +106,7 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
 ---
 
 
-### Example Automation
+### Beispiel Automatisierungen
 
 ```yaml
 - alias: "GeoWeather – periodisch aktualisieren"
@@ -156,7 +151,7 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
 ---
 
 
-### Example Card
+### Beispiel Dashboard Karte
 
 ```yaml
 type: custom:button-card
@@ -224,5 +219,4 @@ styles:
 
 
 ## Credits
-
 DWD data via [DWD OpenData](https://opendata.dwd.de).
