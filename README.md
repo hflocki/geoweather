@@ -56,7 +56,7 @@ During setup you select your GPS sensors:
 
 Works with **any** GPS source: ESPHome, GPSd, MQTT tracker, phone, etc.
 
-Wichtig: Kopieren Sie die Datei pollen_mapping.yaml.example in Ihren Home Assistant /config/ Ordner und benennen Sie diese in pollen_mapping.yaml um, damit Ihre Anpassungen bei Updates nicht verloren gehen.
+
 ---
 
 ## Entities
@@ -77,7 +77,37 @@ automatically skipped when:
 - Vehicle is moving (speed > threshold)
 - GPS fix is insufficient (satellites < minimum)
 
+
+## Pollenflug-Belastungsstufen
+
+Die Integration liefert die präzisen Stufen des DWD. In Dashboards sollte bei Zwischenstufen (z.B. `1-2`) immer die höhere Warnfarbe gewählt werden.
+
+| Wert | Bedeutung | Beschreibung |
+|:---:|---|---|
+| **0** | Keine | Keine Belastung nachweisbar. |
+| **0-1** | Keine bis gering | Erste Pollen, meist symptomfrei. |
+| **1** | Gering | Leicht erhöhte Konzentration. |
+| **1-2** | Gering bis mittel | Spürbare Belastung für Allergiker. |
+| **2** | Mittel | Deutliche Symptome. |
+| **2-3** | Mittel bis hoch | Starke Belastung, Aufenthalt im Freien einschränken. |
+| **3** | Stark | Maximale Warnstufe. |
+
+## Pollen Region Mapping
+
+Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Harz"). 
+
+**Wichtig:** Damit die Zuordnung funktioniert, erstelle eine Datei namens `pollen_mapping.yaml` direkt in deinem Home Assistant `/config/` Ordner (nicht im Integration-Ordner!).
+
+**Format der `pollen_mapping.yaml`:**
+```yaml
+"Dein Kreisname": "Offizieller DWD Regionsname"
+"Landkreis Harz": "Harz"
+"München": "Allgäu/Oberbayern/Bay. Wald"
+---
+
 ### Example Automation
+```
+
 
 ```yaml
 - alias: "GeoWeather – periodisch aktualisieren"
@@ -183,19 +213,6 @@ styles:
           const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
           return (val >= 2) ? 'white' : 'var(--primary-text-color)';
         ]]]
-```
-
----
-
-## Pollen Region Mapping
-
-DWD uses their own region names that sometimes differ from official Kreisname.
-If your region is not found, add a mapping to `const.py`:
-
-```python
-POLLEN_REGION_MAPPING = {
-    "Dein Kreis": "DWD Regionsname",
-}
 ```
 
 ---
