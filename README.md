@@ -8,7 +8,7 @@
     <img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS Custom">
     <img src="https://img.shields.io/github/v/release/hflocki/geoweather" alt="Latest Release">
     <a href="https://www.home-assistant.io"><img src="https://img.shields.io/badge/Home%20Assistant-2023.6%2B-blue" alt="HA Version"></a>
-    <a href="https://discord.gg/5JUWSw79Rq"><img src="https://img.shields.io/discord/1484195745518059580?color=5865F2&label=Join%20Discord&logo=discord&logoColor=white" alt="Discord"></a>
+    <a href="https://discord.gg/5JUWSw79Rq"><img src="https://img.shields.io/discord/1484194968385093746?color=5865F2&label=Join%20Discord&logo=discord&logoColor=white" alt="Discord"></a>
   </p>
 </div>
 
