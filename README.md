@@ -1,4 +1,4 @@
-![GeoWeather Banner](images/banner.svg)
+![GeoWeather Banner](brands/logo.png)
 
 <p align="center">
   <img src="brands/icon.png" width="120" height="120" alt="GeoWeather Icon"/>
