@@ -24,6 +24,8 @@ Eine benutzerdefinierte Home Assistant Integration, die die GPS-Koordinaten dein
 ---
 
 ## Installation über HACS
+Diese Integration ist noch nicht im standardmäßigen HACS‑Store verfügbar. Du kannst sie jedoch trotzdem über HACS installieren, indem du sie als benutzerdefiniertes Repository hinzufügst.
+[https://my.home-assistant.io/badges/hacs_repository.svg](https://my.home-assistant.io/redirect/hacs_repository/?owner=hflocki&repository=geoweather)
 
 1. Öffne HACS → **Integrationen** → ⋮ → **Benutzerdefinierte Repositories**
 2. Füge `https://github.com/hflocki/geoweather` als Typ **Integration** hinzu
@@ -32,8 +34,14 @@ Eine benutzerdefinierte Home Assistant Integration, die die GPS-Koordinaten dein
 5. Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen → GeoWeather**
 
 ## Manuelle Installation
-
+Lade den Quellcode `https://github.com/hflocki/geoweather/releases` herunter.
+Entpacke der Quellcode 
 Kopiere den Ordner `custom_components/geoweather/` in dein `config/custom_components/` Verzeichnis und starte Home Assistant neu.
+
+```
+config/custom_components/geoweather/
+```
+Starte Homeassistant neu
 
 ---
 
