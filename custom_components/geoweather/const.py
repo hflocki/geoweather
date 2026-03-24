@@ -68,7 +68,8 @@ DWD_EVENT_TYPES = {
     87: "Glätte",   88: "Glatteis",         89: "Schweres Glatteis",
     90: "Gewitter", 91: "Starkes Gewitter", 92: "Heftiges Gewitter",
     93: "Extrem heftiges Gewitter",     95: "Hagel",    96: "Schwerer Hagel",
-}
+    98: "Schweres Gewitter mit extrem heftigem Starkregen und Hagel",
+    99: "Schweres Gewitter mit extrem heftigem Starkregen und Hagel",}
 
 # ── Pollen ───────────────────────────────────────────────────────────────────
 POLLEN_TYPES = [
