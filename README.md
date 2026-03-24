@@ -122,7 +122,7 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
   id: geoweather_periodic_update
   trigger:
     - platform: time_pattern
-      minutes: "/60"
+      hours: /1
     - platform: state
       entity_id: binary_sensor.geoweather_faehrt
       from: "on"
