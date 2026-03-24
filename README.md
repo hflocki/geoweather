@@ -1,6 +1,6 @@
 <img src="logo/icon.png" alt="GeoWeather Logo" width="150">
 
-<div align="center">
+<div align="left">
   <h1>GeoWeather</h1>
 
   <p>
