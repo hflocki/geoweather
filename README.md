@@ -135,5 +135,4 @@ POLLEN_REGION_MAPPING = {
 
 ## Credits
 
-Inspired by [hass-geolocator](https://github.com/SmartyVan/hass-geolocator) by SmartyVan.
 DWD data via [DWD OpenData](https://opendata.dwd.de).
