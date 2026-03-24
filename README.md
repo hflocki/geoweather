@@ -55,6 +55,7 @@ During setup you select your GPS sensors:
 
 Works with **any** GPS source: ESPHome, GPSd, MQTT tracker, phone, etc.
 
+Wichtig: Kopieren Sie die Datei pollen_mapping.yaml.example in Ihren Home Assistant /config/ Ordner und benennen Sie diese in pollen_mapping.yaml um, damit Ihre Anpassungen bei Updates nicht verloren gehen.
 ---
 
 ## Entities
