@@ -35,19 +35,28 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._pollen_mapping: dict = {}
 
     async def async_load_pollen_mapping(self) -> None:
-        """Load pollen_mapping.yaml asynchronously (avoids blocking event loop)."""
-        path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml")
+        """Lädt die pollen_mapping.yaml aus dem HA /config/ Verzeichnis."""
+        # Nutzt den offiziellen HA-Pfad zum /config/ Ordner
+        path = self.hass.config.path("pollen_mapping.yaml")
+        
         try:
-            content = await self.hass.async_add_executor_job(
-                lambda: open(path, "r", encoding="utf-8").read()
-                if os.path.exists(path) else ""
-            )
+            def _read_file():
+                if os.path.exists(path):
+                    with open(path, "r", encoding="utf-8") as f:
+                        return f.read()
+                return ""
+
+            content = await self.hass.async_add_executor_job(_read_file)
             if content:
                 data = yaml.safe_load(content)
                 self._pollen_mapping = data if isinstance(data, dict) else {}
-                _LOGGER.debug("pollen_mapping.yaml geladen: %d Eintraege", len(self._pollen_mapping))
+                _LOGGER.debug("pollen_mapping.yaml erfolgreich aus /config/ geladen")
+            else:
+                _LOGGER.info("pollen_mapping.yaml nicht in /config/ gefunden. Nutze leeres Mapping.")
+                self._pollen_mapping = {}
         except Exception as err:
-            _LOGGER.error("Fehler beim Laden der pollen_mapping.yaml: %s", err)
+            _LOGGER.error("Fehler beim Laden der pollen_mapping.yaml unter %s: %s", path, err)
+            self._pollen_mapping = {}
 
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
         await self.async_refresh()
