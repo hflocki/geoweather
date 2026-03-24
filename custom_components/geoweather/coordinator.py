@@ -1,4 +1,5 @@
 """DataUpdateCoordinator for GeoWeather."""
+
 from __future__ import annotations
 
 import logging
@@ -7,18 +8,26 @@ from datetime import datetime
 
 import aiohttp
 import yaml
-
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_ALT_SENSOR,
+    CONF_LAT_SENSOR,
+    CONF_LON_SENSOR,
+    CONF_MIN_SATELLITES,
+    CONF_SAT_SENSOR,
+    CONF_SPEED_SENSOR,
+    CONF_SPEED_THRESHOLD,
+    DEFAULT_MIN_SATELLITES,
+    DEFAULT_SPEED_THRESHOLD,
     DOMAIN,
-    CONF_LAT_SENSOR, CONF_LON_SENSOR, CONF_SPEED_SENSOR,
-    CONF_ALT_SENSOR, CONF_SAT_SENSOR,
-    CONF_SPEED_THRESHOLD, CONF_MIN_SATELLITES,
-    DEFAULT_SPEED_THRESHOLD, DEFAULT_MIN_SATELLITES,
-    URL_DWD_WARNCELL, URL_DWD_WARNINGS, URL_DWD_POLLEN,
-    DWD_SEVERITY, DWD_EVENT_TYPES, POLLEN_TYPES,
+    DWD_EVENT_TYPES,
+    DWD_SEVERITY,
+    POLLEN_TYPES,
+    URL_DWD_POLLEN,
+    URL_DWD_WARNCELL,
+    URL_DWD_WARNINGS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,8 +47,9 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         """Lädt die pollen_mapping.yaml aus dem HA /config/ Verzeichnis."""
         # Nutzt den offiziellen HA-Pfad zum /config/ Ordner
         path = self.hass.config.path("pollen_mapping.yaml")
-        
+
         try:
+
             def _read_file():
                 if os.path.exists(path):
                     with open(path, "r", encoding="utf-8") as f:
@@ -52,10 +62,14 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 self._pollen_mapping = data if isinstance(data, dict) else {}
                 _LOGGER.debug("pollen_mapping.yaml erfolgreich aus /config/ geladen")
             else:
-                _LOGGER.info("pollen_mapping.yaml nicht in /config/ gefunden. Nutze leeres Mapping.")
+                _LOGGER.info(
+                    "pollen_mapping.yaml nicht in /config/ gefunden. Nutze leeres Mapping."
+                )
                 self._pollen_mapping = {}
         except Exception as err:
-            _LOGGER.error("Fehler beim Laden der pollen_mapping.yaml unter %s: %s", path, err)
+            _LOGGER.error(
+                "Fehler beim Laden der pollen_mapping.yaml unter %s: %s", path, err
+            )
             self._pollen_mapping = {}
 
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
@@ -122,7 +136,10 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 "GeoWeather: GPS-Koordinaten nicht lesbar. "
                 "lat_sensor='%s' Wert='%s' | lon_sensor='%s' Wert='%s'. "
                 "Bitte pruefen ob die Sensor-Entity-IDs korrekt konfiguriert sind.",
-                lat_id, lat_val, lon_id, lon_val,
+                lat_id,
+                lat_val,
+                lon_id,
+                lon_val,
             )
             return self.data or {}
 
@@ -132,18 +149,18 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             async with aiohttp.ClientSession() as session:
                 location = await self._fetch_location(session, lat, lon)
                 warnings = await self._fetch_warnings(session, lat, lon)
-                pollen   = await self._fetch_pollen(session, location.get("kreis", ""))
+                pollen = await self._fetch_pollen(session, location.get("kreis", ""))
         except aiohttp.ClientError as exc:
             raise UpdateFailed(f"Netzwerkfehler: {exc}") from exc
 
         return {
-            "location":     location,
-            "warnings":     warnings,
-            "pollen":       pollen,
+            "location": location,
+            "warnings": warnings,
+            "pollen": pollen,
             "gps": {
-                "latitude":   lat,
-                "longitude":  lon,
-                "speed_kmh":  self._float_state(self._cfg(CONF_SPEED_SENSOR)),
+                "latitude": lat,
+                "longitude": lon,
+                "speed_kmh": self._float_state(self._cfg(CONF_SPEED_SENSOR)),
                 "altitude_m": self._float_state(self._cfg(CONF_ALT_SENSOR)),
                 "satellites": self._float_state(self._cfg(CONF_SAT_SENSOR)),
             },
@@ -152,8 +169,10 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
     async def _fetch_location(self, session, lat: float, lon: float) -> dict:
         url = URL_DWD_WARNCELL.format(
-            south=lat - 0.01, west=lon - 0.01,
-            north=lat + 0.01, east=lon + 0.01,
+            south=lat - 0.01,
+            west=lon - 0.01,
+            north=lat + 0.01,
+            east=lon + 0.01,
         )
         async with session.get(url, timeout=_TIMEOUT) as resp:
             resp.raise_for_status()
@@ -165,17 +184,19 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         p = features[0]["properties"]
         return {
-            "status":     "OK",
-            "gemeinde":   str(p.get("NAME",       "Unbekannt")),
-            "kreis":      str(p.get("KREIS",      "Unbekannt")),
+            "status": "OK",
+            "gemeinde": str(p.get("NAME", "Unbekannt")),
+            "kreis": str(p.get("KREIS", "Unbekannt")),
             "bundesland": str(p.get("BUNDESLAND", "Unbekannt")),
             "warncellid": str(p.get("WARNCELLID", "Unbekannt")),
         }
 
     async def _fetch_warnings(self, session, lat: float, lon: float) -> dict:
         url = URL_DWD_WARNINGS.format(
-            south=lat - 0.05, west=lon - 0.05,
-            north=lat + 0.05, east=lon + 0.05,
+            south=lat - 0.05,
+            west=lon - 0.05,
+            north=lat + 0.05,
+            east=lon + 0.05,
         )
         async with session.get(url, timeout=_TIMEOUT) as resp:
             resp.raise_for_status()
@@ -202,23 +223,25 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 ereignis = raw_code.capitalize()
             else:
                 ereignis = f"Code {raw_code}"
-            items.append({
-                "ereignis":      ereignis,
-                "ereignis_code": raw_code,
-                "schwere":       DWD_SEVERITY.get(severity, str(p.get("SEVERITY", ""))),
-                "schwere_level": severity,
-                "headline":      str(p.get("HEADLINE",    "")),
-                "beschreibung":  str(p.get("DESCRIPTION", "")),
-                "gebiet":        str(p.get("AREANAME",    "")),
-                "beginn":        str(p.get("ONSET",       "")),
-                "ende":          str(p.get("EXPIRES",     "")),
-            })
+            items.append(
+                {
+                    "ereignis": ereignis,
+                    "ereignis_code": raw_code,
+                    "schwere": DWD_SEVERITY.get(severity, str(p.get("SEVERITY", ""))),
+                    "schwere_level": severity,
+                    "headline": str(p.get("HEADLINE", "")),
+                    "beschreibung": str(p.get("DESCRIPTION", "")),
+                    "gebiet": str(p.get("AREANAME", "")),
+                    "beginn": str(p.get("ONSET", "")),
+                    "ende": str(p.get("EXPIRES", "")),
+                }
+            )
 
         items.sort(key=lambda w: w["schwere_level"], reverse=True)
         return {
-            "anzahl":           len(items),
+            "anzahl": len(items),
             "hoechste_schwere": items[0]["schwere"] if items else "Keine",
-            "warnungen":        items,
+            "warnungen": items,
         }
 
     async def _fetch_pollen(self, session, kreis: str) -> dict:
@@ -229,31 +252,32 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         search = self._pollen_mapping.get(kreis, kreis)
         match = next(
             (
-                item for item in pollen_json.get("content", [])
-                if search.lower() in str(item.get("region_name",    "")).lower()
-                or search.lower() in str(item.get("partregion_name","")).lower()
+                item
+                for item in pollen_json.get("content", [])
+                if search.lower() in str(item.get("region_name", "")).lower()
+                or search.lower() in str(item.get("partregion_name", "")).lower()
             ),
             None,
         )
 
         if not match:
             return {
-                "status":          "Region nicht gefunden",
-                "kreis":           kreis,
+                "status": "Region nicht gefunden",
+                "kreis": kreis,
                 "gesuchte_region": search,
             }
 
         p_vals = match.get("Pollen", {})
         result = {
-            "status":         "OK",
-            "dwd_region":     str(match.get("region_name",    "Unbekannt")),
-            "dwd_teilregion": str(match.get("partregion_name","")),
+            "status": "OK",
+            "dwd_region": str(match.get("region_name", "Unbekannt")),
+            "dwd_teilregion": str(match.get("partregion_name", "")),
         }
         for pollen in POLLEN_TYPES:
-            d   = p_vals.get(pollen, {})
+            d = p_vals.get(pollen, {})
             key = pollen.lower()
-            result[f"{key}_heute"]       = _parse_pollen(d.get("today"))
-            result[f"{key}_morgen"]      = _parse_pollen(d.get("tomorrow"))
+            result[f"{key}_heute"] = _parse_pollen(d.get("today"))
+            result[f"{key}_morgen"] = _parse_pollen(d.get("tomorrow"))
             result[f"{key}_uebermorgen"] = _parse_pollen(d.get("dayafter_to"))
 
         return result
@@ -261,11 +285,14 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
 def _parse_pollen(val):
     if val is None:
-        return None
-    s = str(val).strip()
-    if s in ("-1", "", "nan"):
-        return None
-    try:
-        return int(s.split("-")[-1]) if "-" in s else int(float(s))
-    except (ValueError, TypeError):
-        return None
+        return "0"
+
+    s = str(val).strip().lower()
+
+    # Ungültige Werte abfangen
+    if s in ("-1", "", "nan", "none"):
+        return "0"
+
+    # Wir geben den Original-String zurück (z.B. "1-2"),
+    # damit die Button-Card die volle Information zur Anzeige hat.
+    return s

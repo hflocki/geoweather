@@ -120,6 +120,71 @@ automatically skipped when:
       data: {}
 ```
 
+### Example Card
+
+```yaml
+type: custom:button-card
+entity: sensor.pollenflug
+aspect_ratio: 1/1
+show_name: true
+name: Pollenflug
+show_state: true
+state_display: |
+  [[[
+    const s = entity.state;
+    if (s == '0')   return 'Keine';
+    if (s == '0-1') return 'Keine bis gering';
+    if (s == '1')   return 'Gering';
+    if (s == '1-2') return 'Gering bis mittel';
+    if (s == '2')   return 'Mittel';
+    if (s == '2-3') return 'Mittel bis hoch';
+    if (s == '3')   return 'Stark';
+    return s;
+  ]]]
+styles:
+  card:
+    - padding: 5px
+    - background-color: |
+        [[[
+          const s = entity.state;
+          if (!s || s === 'unknown' || s === '0') return 'var(--card-background-color)';
+          
+          // Nimm bei "1-2" die 2, bei "2-3" die 3 für die Farbe
+          const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+
+          if (val === 1) return '#ffeb3b'; // Gelb
+          if (val === 2) return '#fb8c00'; // Orange
+          if (val >= 3) return '#e53935'; // Rot
+          return 'var(--card-background-color)';
+        ]]]
+  icon:
+    - color: |
+        [[[
+          const s = entity.state;
+          const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          if (val === 0 || isNaN(val)) return '#c5e566';
+          return (val >= 2) ? 'white' : 'black';
+        ]]]
+  name:
+    - font-weight: bold
+    - font-size: 12px
+    - color: |
+        [[[
+          const s = entity.state;
+          const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          return (val >= 2) ? 'white' : 'var(--primary-text-color)';
+        ]]]
+  state:
+    - font-size: 11px 
+    - font-weight: bold
+    - color: |
+        [[[
+          const s = entity.state;
+          const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          return (val >= 2) ? 'white' : 'var(--primary-text-color)';
+        ]]]
+```
+
 ---
 
 ## Pollen Region Mapping
