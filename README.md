@@ -1,18 +1,15 @@
 ![GeoWeather Banner](brands/logo.png)
 
-<p align="center">
-  <img src="brands/icon.png" width="120" height="120" alt="GeoWeather Icon"/>
-</p>
+<div align="center">
+  <img src="icon.png" alt="GeoWeather Logo" width="150">
+  <h1>GeoWeather</h1>
 
-# GeoWeather 🚐🌦️
-
-<p align="center">
-  <img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS Custom">
-  <img src="https://img.shields.io/github/v/release/hflocki/geoweather" alt="Latest Release">
-</p>
-
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
-[![HA Version](https://img.shields.io/badge/Home%20Assistant-2023.6%2B-blue)](https://www.home-assistant.io)
+  <p>
+    <img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS Custom">
+    <img src="https://img.shields.io/github/v/release/hflocki/geoweather" alt="Latest Release">
+    <a href="https://www.home-assistant.io"><img src="https://img.shields.io/badge/Home%20Assistant-2023.6%2B-blue" alt="HA Version"></a>
+  </p>
+</div>
 
 A Home Assistant custom integration that uses your vehicle's GPS coordinates to fetch
 live data from the **German Weather Service (DWD)**:
