@@ -160,7 +160,7 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
 ---
 
 
-### Beispiel Dashboard Karte
+### Beispiel Dashboard Karte - Warnungen
 
 
 ```yaml
@@ -237,6 +237,9 @@ styles:
 
 ```
 
+### Beispiel Dashboard Karte - Pollen Kachel
+
+
 ```yaml
 type: custom:button-card
 entity: sensor.pollenflug
@@ -299,7 +302,280 @@ styles:
           return (val >= 2) ? 'white' : 'var(--primary-text-color)';
         ]]]
 ```
----
+
+### Beispiel Dashboard Karte - Pollen Übersicht
+
+
+```yaml
+type: vertical-stack
+cards:
+  - type: vertical-stack
+    cards:
+      - type: grid
+        columns: 3
+        square: true
+        cards:
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Birke
+            icon: mdi:tree
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - width: 80%
+                - color: |
+                    [[[
+                      const v = entity.attributes.birke_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Gräser
+            icon: mdi:grass
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - color: |
+                    [[[
+                      const v = entity.attributes.graeser_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Roggen
+            icon: mdi:barley
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - color: |
+                    [[[
+                      const v = entity.attributes.roggen_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Erle
+            icon: mdi:leaf
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - color: |
+                    [[[
+                      const v = entity.attributes.erle_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Hasel
+            icon: mdi:nut
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - color: |
+                    [[[
+                      const v = entity.attributes.hasel_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Esche
+            icon: mdi:tree-outline
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - color: |
+                    [[[
+                      const v = entity.attributes.esche_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Beifuß
+            icon: mdi:sprout
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - color: |
+                    [[[
+                      const v = entity.attributes.beifuss_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Ambrosia
+            icon: mdi:flower-tulip
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - color: |
+                    [[[
+                      const v = entity.attributes.ambrosia_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+          - type: custom:button-card
+            entity: sensor.pollenflug
+            name: Eiche
+            icon: mdi:tree-outline
+            aspect_ratio: 1/1
+            styles:
+              card:
+                - border-radius: 15px
+                - padding: 10%
+              grid:
+                - grid-template-areas: "\"i\" \"n\""
+                - grid-template-rows: 1fr min-content
+              icon:
+                - color: |
+                    [[[
+                      const v = entity.attributes.eiche_heute;
+                      if (v == '0') return '#4caf50';
+                      if (v == '1' || v == '1-2') return '#ffeb3b';
+                      if (v == '2' || v == '2-3') return '#fb8c00';
+                      if (v == '3') return '#e53935';
+                      return 'grey';
+                    ]]]
+              name:
+                - font-size: 13px
+                - font-weight: bold
+                - justify-self: center
+                - padding-top: 5px
+  - type: custom:button-card
+    entity: sensor.pollenflug
+    show_icon: false
+    name: |
+      [[[ return "Region: " + entity.attributes.dwd_teilregion ]]]
+    styles:
+      card:
+        - background: none
+        - border: none
+        - box-shadow: none
+        - padding: 5px
+      name:
+        - font-size: 14px
+        - font-style: italic
+        - opacity: 0.7
+
+```
 
 
 ## Credits
