@@ -1,7 +1,7 @@
 <img src="logo/icon.png" alt="GeoWeather Logo" width="150">
 
 <div align="left">
-  <h1>GeoWeather</h1>
+  <h1>GeoWeather for Home Assistant</h1>
 
   <p>
     <img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS Custom">
@@ -11,14 +11,15 @@
   </p>
 </div>
 
-Eine benutzerdefinierte Home Assistant Integration, die die GPS-Koordinaten deines Fahrzeugs nutzt, um Live-Daten vom **Deutschen Wetterdienst (DWD)** abzurufen:
+GeoWeather ist eine spezialisierte Home Assistant Integration für Wohnmobile und Camper. Sie nutzt die GPS-Koordinaten deines Fahrzeugs, um hyper-lokale Wetter- und Umweltdaten vom Deutschen Wetterdienst (DWD) abzurufen.
 
 - 📍 **Aktueller Standort:** Gemeinde / Kreis / Bundesland / WarnCellID
 - ⛈️ **Wetterwarnungen:** Aktive Warnungen mit Schweregrad, Typ und Zeitraum
 - 🌿 **Pollenflug-Vorhersage:** Heute / Morgen / Übermorgen für 9 Pollenarten
-- 🚗 **Fahrt-Erkennung:** Automatische Pausierung von API-Aufrufen während der Fahrt via GPS-Geschwindigkeitssensor
+- 🌧️ **Regenvorhersage:** Aktuelle Niederschlagsintensität + Forecast via DWD Radar
+- 🚗 **Fahrt-Erkennung:** Automatische Pausierung von API-Aufrufen während der Fahrt
+- ⏱️ **Mindest-Standzeit:** Kein Update bei Kurzstopps (Ampeln, Bahnübergänge)
 
-> **Philosophie:** Kein fester Abruf-Timer. Du kontrollierst, wann Daten abgerufen werden, indem du den Dienst `geoweather.update` über deine eigenen Automatisierungen aufrufst.
 
 ---
 
@@ -70,58 +71,63 @@ Funktioniert mit **jeder** GPS-Quelle: ESPHome, GPSd, MQTT-Tracker, Smartphone, 
 
 ## Entitäten
 
-| Entität | Beschreibung |
-|---|---|
-| `sensor.geoweather_standort` | Aktuelle Gemeinde (Zustand) + Kreis, Bundesland, WarnCellID |
-| `sensor.geoweather_dwd_warnungen` | Anzahl aktiver Warnungen (Zustand) + vollständige Liste in Attributen |
-| `sensor.geoweather_pollenflug` | Höchste Belastung heute (Zustand) + alle 9 Arten × 3 Tage |
-| `binary_sensor.geoweather_faehrt` | `on` = in Fahrt (Updates pausiert), `off` = Fahrzeug steht |
+Alle Entitäten werden unter einem gemeinsamen **GeoWeather-Gerät** gruppiert.
+
+| Entität | State | Beschreibung |
+|---|---|---|
+| `sensor.geoweather_standort` | Gemeindename | + Kreis, Bundesland, WarnCellID, GPS-Koordinaten |
+| `sensor.geoweather_warnungen` | Anzahl (Integer) | + vollständige Warnliste in Attributen |
+| `sensor.geoweather_pollenflug` | Höchste Stufe heute | + alle 9 Pollenarten × 3 Tage |
+| `sensor.geoweather_regenvorhersage` | mm/h (aktuell) | + Forecast-Map, Regenstart/-ende |
+| `binary_sensor.geoweather_faehrt` | `on`/`off` | `on` = fährt (Updates pausiert) |
+
+> **Hinweis:** Der Warnungen-Sensor liefert als State eine **Ganzzahl** (0, 1, 2, ...). Das ermöglicht einfache Automationen wie `state > 0` statt String-Vergleiche.
 
 ---
 
 ## Dienst: `geoweather.update`
 
-Löst einen frischen Abruf aller DWD-Daten aus. Kann jederzeit sicher aufgerufen werden – wird automatisch übersprungen, wenn:
+Löst einen frischen Abruf aller DWD-Daten aus. Wird automatisch übersprungen wenn:
 - Das Fahrzeug fährt (Geschwindigkeit > Schwellenwert)
 - Der GPS-Fix unzureichend ist (Satelliten < Minimum)
+- Die Mindest-Standzeit noch nicht erreicht ist
 
 ---
 
 ## Pollenflug-Belastungsstufen
 
-Die Integration liefert die präzisen Stufen des DWD. In Dashboards sollte bei Zwischenstufen (z.B. `1-2`) immer die höhere Warnfarbe gewählt werden.
+Die Integration liefert die präzisen DWD-Stufen als Strings. In Dashboards sollte bei Zwischenstufen (z.B. `1-2`) immer die höhere Warnfarbe gewählt werden.
 
 | Wert | Bedeutung | Beschreibung |
 |:---:|---|---|
-| **0** | Keine | Keine Belastung nachweisbar. |
-| **0-1** | Keine bis gering | Erste Pollen, meist symptomfrei. |
-| **1** | Gering | Leicht erhöhte Konzentration. |
-| **1-2** | Gering bis mittel | Spürbare Belastung für Allergiker. |
-| **2** | Mittel | Deutliche Symptome. |
-| **2-3** | Mittel bis hoch | Starke Belastung, Aufenthalt im Freien einschränken. |
-| **3** | Stark | Maximale Warnstufe. |
+| **0** | Keine | Keine Belastung nachweisbar |
+| **0-1** | Keine bis gering | Erste Pollen, meist symptomfrei |
+| **1** | Gering | Leicht erhöhte Konzentration |
+| **1-2** | Gering bis mittel | Spürbare Belastung für Allergiker |
+| **2** | Mittel | Deutliche Symptome |
+| **2-3** | Mittel bis hoch | Starke Belastung, Aufenthalt einschränken |
+| **3** | Stark | Maximale Warnstufe |
 
 ---
-
 
 ## Pollen Region Mapping
 
-Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Harz"). 
+Der DWD liefert Pollendaten nach Regionen (z.B. "Harz"), nicht nach Kreisen. Erstelle eine Datei `pollen_mapping.yaml` direkt in deinem `/config/` Ordner:
 
-**Wichtig:** Damit die Zuordnung funktioniert, erstelle eine Datei namens `pollen_mapping.yaml` direkt in deinem Home Assistant `/config/` Ordner (nicht im Integration-Ordner!). (Alle Regionen stehen in der `regions.md`)
-
-**Format der `pollen_mapping.yaml`:**
 ```yaml
-"Dein Kreisname": "Offizieller DWD Regionsname"
 "Landkreis Harz": "Harz"
 "München": "Allgäu/Oberbayern/Bay. Wald"
+"Rheinisch-Bergischer Kreis": "Rhein.-Westfäl. Tiefland"
 ```
+
+Alle verfügbaren Regionen findest du in der `regions.md` im Repository.
+
 ---
 
-
-### Beispiel Automatisierungen
+## Beispiel Automatisierungen
 
 ```yaml
+# Stündliche Aktualisierung während des Stillstands
 - alias: "GeoWeather – periodisch aktualisieren"
   id: geoweather_periodic_update
   trigger:
@@ -141,51 +147,48 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
 ```
 
 ```yaml
+# Update nach deutlicher Positionsänderung (~1 km)
 - alias: "GeoWeather – nach Positionswechsel"
   id: geoweather_position_change
   trigger:
     - platform: state
-      entity_id: sensor.my_gps_latitude
+      entity_id: sensor.mein_gps_latitude
   condition:
-    # 1. Wir müssen stehen
     - condition: state
       entity_id: binary_sensor.geoweather_faehrt
       state: "off"
-    # 2. Nur wenn sich der Wert wirklich geändert hat (nicht nur Zeitstempel)
     - condition: template
       value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
-    # 3. Optional: Nur wenn die Änderung groß genug ist (ca. 1km = 0.01 Grad)
     - condition: template
       value_template: "{{ (trigger.from_state.state | float - trigger.to_state.state | float) | abs > 0.01 }}"
   action:
     - service: geoweather.update
       data: {}
 ```
+
 ---
 
-
-### Beispiel Dashboard Karte - Warnungen
+## Beispiel Dashboard – Warnungen
 
 ```yaml
 type: custom:button-card
-entity: sensor.warnungen
+entity: sensor.geoweather_warnungen
 aspect_ratio: 1/1
 show_name: false
 show_label: true
-label: |-
-  [[[ 
+label: |
+  [[[
     const anzahl = parseInt(entity.state);
     const warnings = entity.attributes.warnungen;
     if (isNaN(anzahl) || anzahl === 0 || !warnings || warnings.length === 0) return 'Alles ok';
-    // Zeige das Ereignis der ersten Warnung (z.B. Frost)
-    return warnings[0].ereignis; 
+    return warnings[0].ereignis;
   ]]]
 icon: mdi:shield-check
 size: 45%
 state:
   - operator: template
-    value: |-
-      [[[ 
+    value: |
+      [[[
         const warnings = entity.attributes.warnungen;
         return warnings && warnings.length > 0 && parseInt(warnings[0].schwere_level) >= 3;
       ]]]
@@ -196,407 +199,271 @@ state:
         - animation: blink 2s ease-in-out infinite
 styles:
   grid:
-    - grid-template-areas: "\"i\" \"l\" \"s\""
+    - grid-template-areas: '"i" "l" "s"'
     - grid-template-rows: 1fr auto min-content
-  card:
-    - padding: 5px
-    - background-color: |-
-        [[[ 
-          const warnings = entity.attributes.warnungen;
-          if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
-          
-          const level = parseInt(warnings[0].schwere_level);
-          // Farbskala basierend auf schwere_level
-          if (level <= 1) return '#ffeb3b'; // Gelb (Minor)
-          if (level === 2) return '#fb8c00'; // Orange (Moderate)
-          if (level === 3) return '#e53935'; // Rot (Severe)
-          if (level >= 4) return '#880e4f';  // Violett (Extreme)
-          return 'var(--card-background-color)';
-        ]]]
-  icon:
-    - color: |-
-        [[[ 
-          const warnings = entity.attributes.warnungen;
-          if (!warnings || warnings.length === 0) return '#c5e566';
-          const level = parseInt(warnings[0].schwere_level);
-          return (level <= 2) ? 'black' : 'white'; 
-        ]]]
-  label:
-    - font-size: 10px
-    - font-weight: bold
-    - justify-self: center
-    - text-wrap: wrap
-    - color: |-
-        [[[ 
-          const warnings = entity.attributes.warnungen;
-          if (!warnings || warnings.length === 0) return 'var(--primary-text-color)';
-          const level = parseInt(warnings[0].schwere_level);
-          return (level <= 2) ? 'black' : 'white'; 
-        ]]]
-  state:
-    - font-size: 9px
-    - color: var(--secondary-text-color)
-    - justify-self: center
-
 ```
 
-### Beispiel Dashboard Karte - Pollen Kachel
+Markdown-Karte für Warnungsdetails:
 
 ```yaml
-type: custom:button-card
-entity: sensor.pollenflug
-aspect_ratio: 1/1
-show_name: true
-name: Pollenflug
-show_state: true
-state_display: |
-  [[[
-    const s = entity.state;
-    if (s == '0')   return 'Keine';
-    if (s == '0-1') return 'Keine bis gering';
-    if (s == '1')   return 'Gering';
-    if (s == '1-2') return 'Gering bis mittel';
-    if (s == '2')   return 'Mittel';
-    if (s == '2-3') return 'Mittel bis hoch';
-    if (s == '3')   return 'Stark';
-    return s;
-  ]]]
-styles:
-  card:
-    - padding: 5px
-    - background-color: |
-        [[[
-          const s = entity.state;
-          if (!s || s === 'unknown' || s === '0') return 'var(--card-background-color)';
-          
-          // Nimm bei "1-2" die 2, bei "2-3" die 3 für die Farbe
-          const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+type: markdown
+content: |
+  {% set warnungen = state_attr('sensor.geoweather_warnungen', 'warnungen') %}
+  {% if warnungen %}
+    {% for w in warnungen %}
+    ### ⚠️ {{ w.ereignis }}
+    **{{ w.headline }}**
 
-          if (val === 1) return '#ffeb3b'; // Gelb
-          if (val === 2) return '#fb8c00'; // Orange
-          if (val >= 3) return '#e53935'; // Rot
-          return 'var(--card-background-color)';
-        ]]]
-  icon:
-    - color: |
-        [[[
-          const s = entity.state;
-          const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          if (val === 0 || isNaN(val)) return '#c5e566';
-          return (val >= 2) ? 'white' : 'black';
-        ]]]
-  name:
-    - font-weight: bold
-    - font-size: 12px
-    - color: |
-        [[[
-          const s = entity.state;
-          const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          return (val >= 2) ? 'white' : 'var(--primary-text-color)';
-        ]]]
-  state:
-    - font-size: 11px 
-    - font-weight: bold
-    - color: |
-        [[[
-          const s = entity.state;
-          const val = s.includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          return (val >= 2) ? 'white' : 'var(--primary-text-color)';
-        ]]]
+    *🕒 {{ as_timestamp(w.beginn) | timestamp_custom('%H:%M') }} - {{ as_timestamp(w.ende) | timestamp_custom('%H:%M Uhr') }}*
+
+    > {{ w.beschreibung }}
+
+    ---
+    {% endfor %}
+  {% else %}
+    *Aktuell liegen keine Warnmeldungen vor.*
+  {% endif %}
 ```
 
-### Beispiel Dashboard Karte - Warn Übersicht
+---
 
-```yaml
-
-type: conditional
-conditions:
-  - entity: sensor.warnungen
-    state_not: "0"
-  - entity: sensor.warnungen
-    state_not: unavailable
-  - entity: sensor.warnungen
-    state_not: unknown
-card:
-  type: markdown
-  content: >
-    # ⛈️ Wetterwarnungen
-
-    {% set warnungen = state_attr('sensor.warnungen', 'warnungen') %} {% if
-    warnungen %}
-      {% for w in warnungen %}
-      ### ⚠️ {{ w.ereignis }}
-      **{{ w.headline }}**
-      
-      *🕒 {{ as_timestamp(w.beginn) | timestamp_custom('%H:%M') }} - {{ as_timestamp(w.ende) | timestamp_custom('%H:%M Uhr') }}*
-
-      > {{ w.beschreibung }}
-
-      ---
-      {% endfor %}
-    {% else %}
-      *Aktuell liegen keine detaillierten Warnmeldungen vor.*
-    {% endif %}
-
-```
-
-### Beispiel Dashboard Karte - Pollen Übersicht
+## Beispiel Dashboard – Pollen Übersicht
 
 ```yaml
 type: vertical-stack
 cards:
-  - type: vertical-stack
+  - type: grid
+    columns: 3
+    square: true
     cards:
-      - type: grid
-        columns: 3
-        square: true
-        cards:
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Birke
-            icon: mdi:tree
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - width: 80%
-                - color: |
-                    [[[
-                      const v = entity.attributes.birke_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Gräser
-            icon: mdi:grass
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - color: |
-                    [[[
-                      const v = entity.attributes.graeser_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Roggen
-            icon: mdi:barley
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - color: |
-                    [[[
-                      const v = entity.attributes.roggen_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Erle
-            icon: mdi:leaf
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - color: |
-                    [[[
-                      const v = entity.attributes.erle_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Hasel
-            icon: mdi:nut
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - color: |
-                    [[[
-                      const v = entity.attributes.hasel_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Esche
-            icon: mdi:tree-outline
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - color: |
-                    [[[
-                      const v = entity.attributes.esche_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Beifuß
-            icon: mdi:sprout
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - color: |
-                    [[[
-                      const v = entity.attributes.beifuss_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Ambrosia
-            icon: mdi:flower-tulip
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - color: |
-                    [[[
-                      const v = entity.attributes.ambrosia_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
-          - type: custom:button-card
-            entity: sensor.pollenflug
-            name: Eiche
-            icon: mdi:tree-outline
-            aspect_ratio: 1/1
-            styles:
-              card:
-                - border-radius: 15px
-                - padding: 10%
-              grid:
-                - grid-template-areas: "\"i\" \"n\""
-                - grid-template-rows: 1fr min-content
-              icon:
-                - color: |
-                    [[[
-                      const v = entity.attributes.eiche_heute;
-                      if (v == '0') return '#4caf50';
-                      if (v == '1' || v == '1-2') return '#ffeb3b';
-                      if (v == '2' || v == '2-3') return '#fb8c00';
-                      if (v == '3') return '#e53935';
-                      return 'grey';
-                    ]]]
-              name:
-                - font-size: 13px
-                - font-weight: bold
-                - justify-self: center
-                - padding-top: 5px
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Birke
+        icon: mdi:tree
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - width: 80%
+            - color: |
+                [[[
+                  const v = entity.attributes.birke_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Gräser
+        icon: mdi:grass
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.graeser_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Roggen
+        icon: mdi:barley
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.roggen_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Erle
+        icon: mdi:leaf
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.erle_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Hasel
+        icon: mdi:nut
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.hasel_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Esche
+        icon: mdi:tree-outline
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.esche_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Beifuß
+        icon: mdi:sprout
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.beifuss_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Ambrosia
+        icon: mdi:flower-tulip
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.ambrosia_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Eiche
+        icon: mdi:tree-outline
+        aspect_ratio: 1/1
+        styles:
+          card:
+            - border-radius: 15px
+            - padding: 10%
+          grid:
+            - grid-template-areas: '"i" "n"'
+            - grid-template-rows: 1fr min-content
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.eiche_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+          name:
+            - font-size: 13px
+            - font-weight: bold
   - type: custom:button-card
-    entity: sensor.pollenflug
+    entity: sensor.geoweather_pollenflug
     show_icon: false
     name: |
       [[[ return "Region: " + entity.attributes.dwd_teilregion ]]]
@@ -610,15 +477,16 @@ cards:
         - font-size: 14px
         - font-style: italic
         - opacity: 0.7
-
 ```
 
+---
 
 ## Credits
-DWD data via [DWD OpenData](https://opendata.dwd.de). [Copyright](https://www.dwd.de/DE/service/rechtliche_hinweise/rechtliche_hinweise.html)
 
-[DWD Pollenflug](https://github.com/mampfes/hacs_dwd_pollenflug)
+DWD-Daten via [DWD OpenData](https://opendata.dwd.de). [Copyright](https://www.dwd.de/DE/service/rechtliche_hinweise/rechtliche_hinweise.html)
 
-[DWD Precipitation Forecast](https://github.com/stoppegp/ha-dwd-precipitation-forecast)
-
-[DWD Weather](https://github.com/FL550/dwd_weather)
+Inspiriert von:
+- [DWD Pollenflug](https://github.com/mampfes/hacs_dwd_pollenflug)
+- [DWD Precipitation Forecast](https://github.com/stoppegp/ha-dwd-precipitation-forecast)
+- [DWD Weather](https://github.com/FL550/dwd_weather)
+- [hass-geolocator](https://github.com/SmartyVan/hass-geolocator)

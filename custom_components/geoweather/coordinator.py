@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
-from datetime import datetime
+import tarfile
+from datetime import datetime, timedelta, timezone
+from io import BytesIO
 
 import aiohttp
+import numpy as np
 import yaml
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -28,29 +32,28 @@ from .const import (
     DWD_SEVERITY,
     POLLEN_TYPES,
     URL_DWD_POLLEN,
+    URL_DWD_RADAR,
     URL_DWD_WARNCELL,
     URL_DWD_WARNINGS,
 )
 
 _LOGGER = logging.getLogger(__name__)
-_TIMEOUT = aiohttp.ClientTimeout(total=20)
+_TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 
 class GeoWeatherCoordinator(DataUpdateCoordinator):
-    """Fetches DWD location, warnings and pollen data on service call."""
+    """Zentrale für Standort, Warnungen, Pollen und Radar-Regendaten."""
 
     def __init__(self, hass: HomeAssistant, entry) -> None:
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=None)
         self.entry = entry
         self.last_skip_reason: str | None = None
         self._pollen_mapping: dict = {}
-        self.stopped_at: datetime | None = None  # Zeitpunkt des letzten Anhaltens
+        self.stopped_at: datetime | None = None
 
     async def async_load_pollen_mapping(self) -> None:
-        """Lädt die pollen_mapping.yaml aus dem HA /config/ Verzeichnis."""
-        # Nutzt den offiziellen HA-Pfad zum /config/ Ordner
+        """Lädt Mapping für Pollen-Regionen aus /config/pollen_mapping.yaml."""
         path = self.hass.config.path("pollen_mapping.yaml")
-
         try:
 
             def _read_file():
@@ -63,21 +66,11 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             if content:
                 data = yaml.safe_load(content)
                 self._pollen_mapping = data if isinstance(data, dict) else {}
-                _LOGGER.debug("pollen_mapping.yaml erfolgreich aus /config/ geladen")
-            else:
-                _LOGGER.info(
-                    "pollen_mapping.yaml nicht in /config/ gefunden. Nutze leeres Mapping."
-                )
-                self._pollen_mapping = {}
         except Exception as err:
-            _LOGGER.error(
-                "Fehler beim Laden der pollen_mapping.yaml unter %s: %s", path, err
-            )
-            self._pollen_mapping = {}
+            _LOGGER.error("Fehler beim Laden von pollen_mapping.yaml: %s", err)
 
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
-        """Service-Handler: prüft Mindest-Standzeit bevor der Abruf ausgelöst wird."""
-        # Bewegungsstatus direkt vom binary_sensor lesen (live, nicht aus Coordinator-Cache)
+        """Prüft Bewegung und Standzeit vor dem Update."""
         moving_entity = None
         for state in self.hass.states.async_all("binary_sensor"):
             if self.entry.entry_id in state.entity_id and "moving" in state.entity_id:
@@ -87,27 +80,21 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         is_moving = moving_entity.state == "on" if moving_entity else self._is_moving()
 
         if is_moving:
-            # Fahrzeug bewegt sich → Timer zurücksetzen
             self.stopped_at = None
         else:
-            # Fahrzeug steht → Timer starten falls noch nicht gestartet
             if self.stopped_at is None:
                 self.stopped_at = datetime.now()
 
-            # Mindest-Standzeit prüfen
-            standing_seconds = (datetime.now() - self.stopped_at).total_seconds()
-            standing_minutes = standing_seconds / 60
-            min_time = float(
+            standing_min = (datetime.now() - self.stopped_at).total_seconds() / 60
+            limit = float(
                 self._cfg(CONF_MIN_STATIONARY_TIME, DEFAULT_MIN_STATIONARY_TIME)
             )
 
-            if standing_minutes < min_time:
+            if standing_min < limit:
                 self.last_skip_reason = (
-                    f"Fahrzeug steht erst seit {int(standing_minutes)} Min "
-                    f"(Limit: {min_time:.0f} Min) – Update übersprungen"
+                    f"Standzeit zu kurz ({int(standing_min)}/{int(limit)} Min)"
                 )
-                _LOGGER.debug(self.last_skip_reason)
-                return  # Kein Refresh – zu kurz gestanden
+                return
 
         await self.async_refresh()
 
@@ -127,153 +114,145 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
     def _is_moving(self) -> bool:
         speed = self._float_state(self._cfg(CONF_SPEED_SENSOR))
-        if speed is None:
-            return False
-        return speed > float(self._cfg(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD))
+        threshold = float(self._cfg(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD))
+        return speed > threshold if speed is not None else False
 
     def _has_valid_fix(self) -> bool:
         sat_id = self._cfg(CONF_SAT_SENSOR)
         if not sat_id:
             return True
         sats = self._float_state(sat_id)
-        if sats is None:
-            return False
-        return sats >= float(self._cfg(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES))
+        limit = float(self._cfg(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES))
+        return sats >= limit if sats is not None else False
+
+    def _get_radar_coords(self, lat, lon):
+        """Umrechnung GPS -> DWD Radar Gitter (1200x1100)."""
+        phi_0, lambda_0 = 60.0 * math.pi / 180.0, 10.0 * math.pi / 180.0
+        r_earth = 6370.04
+        phi, lamb = lat * math.pi / 180.0, lon * math.pi / 180.0
+        m = (1.0 + math.sin(phi_0)) / (1.0 + math.sin(phi))
+        x = m * r_earth * math.cos(phi) * math.sin(lamb - lambda_0)
+        y = m * r_earth * math.cos(phi) * math.cos(lamb - lambda_0)
+        x_grid = int(round(x + 542.362))
+        y_grid = int(round(y + 3590.442))
+
+        if not (0 <= x_grid < 1100 and 0 <= y_grid < 1200):
+            return None, None
+        return x_grid, 1200 - y_grid
 
     async def _async_update_data(self) -> dict:
-        if self._is_moving():
-            speed = self._float_state(self._cfg(CONF_SPEED_SENSOR))
-            self.last_skip_reason = f"Fahrzeug faehrt ({speed} km/h)"
-            self.stopped_at = None  # Timer zurücksetzen
-            _LOGGER.debug(self.last_skip_reason)
+        """Haupt-Update-Loop."""
+        if self._is_moving() or not self._has_valid_fix():
             return self.data or {}
 
-        if not self._has_valid_fix():
-            sats = self._float_state(self._cfg(CONF_SAT_SENSOR))
-            self.last_skip_reason = f"GPS-Fix unzureichend ({sats} Satelliten)"
-            _LOGGER.debug(self.last_skip_reason)
-            return self.data or {}
-
-        lat_id = self._cfg(CONF_LAT_SENSOR)
-        lon_id = self._cfg(CONF_LON_SENSOR)
-        lat = self._float_state(lat_id)
-        lon = self._float_state(lon_id)
-
+        lat = self._float_state(self._cfg(CONF_LAT_SENSOR))
+        lon = self._float_state(self._cfg(CONF_LON_SENSOR))
         if lat is None or lon is None:
-            lat_state = self.hass.states.get(lat_id)
-            lon_state = self.hass.states.get(lon_id)
-            lat_val = lat_state.state if lat_state else "Entitaet nicht gefunden"
-            lon_val = lon_state.state if lon_state else "Entitaet nicht gefunden"
-            self.last_skip_reason = (
-                f"GPS nicht verfuegbar – "
-                f"lat_sensor='{lat_id}' ({lat_val}), "
-                f"lon_sensor='{lon_id}' ({lon_val})"
-            )
-            _LOGGER.warning(
-                "GeoWeather: GPS-Koordinaten nicht lesbar. "
-                "lat_sensor='%s' Wert='%s' | lon_sensor='%s' Wert='%s'. "
-                "Bitte pruefen ob die Sensor-Entity-IDs korrekt konfiguriert sind.",
-                lat_id,
-                lat_val,
-                lon_id,
-                lon_val,
-            )
             return self.data or {}
-
-        self.last_skip_reason = None
 
         try:
             async with aiohttp.ClientSession() as session:
                 location = await self._fetch_location(session, lat, lon)
                 warnings = await self._fetch_warnings(session, lat, lon)
                 pollen = await self._fetch_pollen(session, location.get("kreis", ""))
-        except aiohttp.ClientError as exc:
-            raise UpdateFailed(f"Netzwerkfehler: {exc}") from exc
+                regen = await self._fetch_radar(
+                    session, lat, lon
+                )  # <--- Jetzt enthalten
+        except Exception as exc:
+            raise UpdateFailed(f"GeoWeather Update fehlgeschlagen: {exc}")
 
         return {
             "location": location,
             "warnings": warnings,
             "pollen": pollen,
+            "regen": regen,
             "gps": {
                 "latitude": lat,
                 "longitude": lon,
-                "speed_kmh": self._float_state(self._cfg(CONF_SPEED_SENSOR)),
                 "altitude_m": self._float_state(self._cfg(CONF_ALT_SENSOR)),
                 "satellites": self._float_state(self._cfg(CONF_SAT_SENSOR)),
             },
             "last_updated": datetime.now().isoformat(),
         }
 
-    async def _fetch_location(self, session, lat: float, lon: float) -> dict:
-        url = URL_DWD_WARNCELL.format(
-            south=lat - 0.01,
-            west=lon - 0.01,
-            north=lat + 0.01,
-            east=lon + 0.01,
-        )
-        async with session.get(url, timeout=_TIMEOUT) as resp:
+    async def _fetch_radar(self, session, lat, lon) -> dict:
+        """Radar-Archiv laden und für GPS-Punkt auswerten."""
+        x, y = self._get_radar_coords(lat, lon)
+        if x is None:
+            return {"aktuell": 0, "forecast": {}}
+
+        async with session.get(URL_DWD_RADAR, timeout=_TIMEOUT) as resp:
             resp.raise_for_status()
-            data = await resp.json(content_type=None)
+            content = await resp.read()
 
-        features = data.get("features", [])
-        if not features:
-            return {"status": "Keine DWD Region", "gemeinde": "Unbekannt", "kreis": ""}
+        def _process_radar():
+            data_map = {}
+            with tarfile.open(fileobj=BytesIO(content)) as tar:
+                for member in sorted(tar.getmembers(), key=lambda m: m.name):
+                    f = tar.extractfile(member)
+                    # DWD RV-Format Header überspringen
+                    raw = f.read().split(b"\x03", 1)[1]
+                    grid = np.frombuffer(raw, dtype="uint16").reshape(1200, 1100)
+                    val = float(grid[y, x]) * 0.1  # RV-Format: 0.1 mm/h
 
-        p = features[0]["properties"]
+                    time_str = member.name[-14:-4]
+                    base = datetime.strptime(time_str, "%y%m%d%H%M").replace(
+                        tzinfo=timezone.utc
+                    )
+                    forecast_time = base + timedelta(minutes=int(member.name[-3:]))
+                    data_map[forecast_time.isoformat()] = round(val, 2)
+            return data_map
+
+        forecast = await self.hass.async_add_executor_job(_process_radar)
+        vals = list(forecast.values())
+        next_start = next((t for t, v in forecast.items() if v > 0), None)
+
         return {
-            "status": "OK",
-            "gemeinde": str(p.get("NAME", "Unbekannt")),
-            "kreis": str(p.get("KREIS", "Unbekannt")),
-            "bundesland": str(p.get("BUNDESLAND", "Unbekannt")),
-            "warncellid": str(p.get("WARNCELLID", "Unbekannt")),
+            "aktuell": vals[0] if vals else 0,
+            "forecast": forecast,
+            "next_start": next_start,
+            "next_length": sum(1 for v in vals if v > 0) * 5,
         }
 
-    async def _fetch_warnings(self, session, lat: float, lon: float) -> dict:
-        url = URL_DWD_WARNINGS.format(
-            south=lat - 0.05,
-            west=lon - 0.05,
-            north=lat + 0.05,
-            east=lon + 0.05,
+    async def _fetch_location(self, session, lat, lon) -> dict:
+        url = URL_DWD_WARNCELL.format(
+            south=lat - 0.01, west=lon - 0.01, north=lat + 0.01, east=lon + 0.01
         )
         async with session.get(url, timeout=_TIMEOUT) as resp:
-            resp.raise_for_status()
             data = await resp.json(content_type=None)
+        feat = data.get("features", [])
+        if not feat:
+            return {"status": "Keine Region", "gemeinde": "Unbekannt", "kreis": ""}
+        p = feat[0]["properties"]
+        return {
+            "status": "OK",
+            "gemeinde": p.get("NAME"),
+            "kreis": p.get("KREIS"),
+            "bundesland": p.get("BUNDESLAND"),
+            "warncellid": p.get("WARNCELLID"),
+        }
 
+    async def _fetch_warnings(self, session, lat, lon) -> dict:
+        url = URL_DWD_WARNINGS.format(
+            south=lat - 0.05, west=lon - 0.05, north=lat + 0.05, east=lon + 0.05
+        )
+        async with session.get(url, timeout=_TIMEOUT) as resp:
+            data = await resp.json(content_type=None)
         items = []
         for feat in data.get("features", []):
             p = feat.get("properties", {})
-            # EVENT kann int oder String sein (z.B. "FROST") – sicher parsen
-            raw_code = p.get("EVENT", 0)
-            try:
-                code = int(raw_code)
-            except (ValueError, TypeError):
-                code = 0
-            raw_sev = p.get("SEVERITY", 0)
-            try:
-                severity = int(raw_sev)
-            except (ValueError, TypeError):
-                severity = 0
-            # Ereignisname: zuerst Lookup per Code, dann direkt den String nutzen
-            if code and code in DWD_EVENT_TYPES:
-                ereignis = DWD_EVENT_TYPES[code]
-            elif isinstance(raw_code, str) and raw_code:
-                ereignis = raw_code.capitalize()
-            else:
-                ereignis = f"Code {raw_code}"
+            code, sev = int(p.get("EVENT", 0)), int(p.get("SEVERITY", 0))
             items.append(
                 {
-                    "ereignis": ereignis,
-                    "ereignis_code": raw_code,
-                    "schwere": DWD_SEVERITY.get(severity, str(p.get("SEVERITY", ""))),
-                    "schwere_level": severity,
-                    "headline": str(p.get("HEADLINE", "")),
-                    "beschreibung": str(p.get("DESCRIPTION", "")),
-                    "gebiet": str(p.get("AREANAME", "")),
-                    "beginn": str(p.get("ONSET", "")),
-                    "ende": str(p.get("EXPIRES", "")),
+                    "ereignis": DWD_EVENT_TYPES.get(code, f"Code {code}"),
+                    "schwere": DWD_SEVERITY.get(sev, "Unbekannt"),
+                    "schwere_level": sev,
+                    "headline": p.get("HEADLINE", ""),
+                    "beschreibung": p.get("DESCRIPTION", ""),
+                    "beginn": p.get("ONSET", ""),
+                    "ende": p.get("EXPIRES", ""),
                 }
             )
-
         items.sort(key=lambda w: w["schwere_level"], reverse=True)
         return {
             "anzahl": len(items),
@@ -282,54 +261,44 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         }
 
     async def _fetch_pollen(self, session, kreis: str) -> dict:
+        """Pollenflug-Daten abrufen (bevorzugt via region_id)."""
         async with session.get(URL_DWD_POLLEN, timeout=_TIMEOUT) as resp:
             resp.raise_for_status()
-            pollen_json = await resp.json(content_type=None)
+            json_data = await resp.json(content_type=None)
 
-        search = self._pollen_mapping.get(kreis, kreis)
-        match = next(
-            (
-                item
-                for item in pollen_json.get("content", [])
-                if search.lower() in str(item.get("region_name", "")).lower()
-                or search.lower() in str(item.get("partregion_name", "")).lower()
-            ),
-            None,
-        )
+        search_val = self._pollen_mapping.get(kreis, kreis)
+        match = None
+        for item in json_data.get("content", []):
+            rid = item.get("region_id")
+            rname = str(item.get("region_name", "")).lower()
+            pname = str(item.get("partregion_name", "")).lower()
+
+            if str(rid) == str(search_val):
+                match = item
+                break
+            if str(search_val).lower() in rname or str(search_val).lower() in pname:
+                match = item
+                break
 
         if not match:
-            return {
-                "status": "Region nicht gefunden",
-                "kreis": kreis,
-                "gesuchte_region": search,
-            }
-
+            return {"status": "Region nicht gefunden"}
         p_vals = match.get("Pollen", {})
-        result = {
+        res = {
             "status": "OK",
-            "dwd_region": str(match.get("region_name", "Unbekannt")),
-            "dwd_teilregion": str(match.get("partregion_name", "")),
+            "dwd_region": match.get("region_name"),
+            "dwd_teilregion": match.get("partregion_name"),
+            "region_id": match.get("region_id"),
         }
-        for pollen in POLLEN_TYPES:
-            d = p_vals.get(pollen, {})
-            key = pollen.lower()
-            result[f"{key}_heute"] = _parse_pollen(d.get("today"))
-            result[f"{key}_morgen"] = _parse_pollen(d.get("tomorrow"))
-            result[f"{key}_uebermorgen"] = _parse_pollen(d.get("dayafter_to"))
-
-        return result
+        for pt in POLLEN_TYPES:
+            d = p_vals.get(pt, {})
+            res[f"{pt.lower()}_heute"] = _parse_pollen(d.get("today"))
+            res[f"{pt.lower()}_morgen"] = _parse_pollen(d.get("tomorrow"))
+            res[f"{pt.lower()}_uebermorgen"] = _parse_pollen(d.get("dayafter_to"))
+        return res
 
 
 def _parse_pollen(val):
     if val is None:
         return "0"
-
     s = str(val).strip().lower()
-
-    # Ungültige Werte abfangen
-    if s in ("-1", "", "nan", "none"):
-        return "0"
-
-    # Wir geben den Original-String zurück (z.B. "1-2"),
-    # damit die Button-Card die volle Information zur Anzeige hat.
-    return s
+    return "0" if s in ("-1", "", "nan", "none") else s

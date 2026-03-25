@@ -2,43 +2,45 @@
   "config": {
     "step": {
       "user": {
-        "title": "GeoWeather einrichten",
-        "description": "Wähle die GPS-Sensoren deines Geräts. Breitengrad, Längengrad und Geschwindigkeit sind Pflichtfelder. Höhe und Satelliten sind optional, verbessern aber die Zuverlässigkeit.",
+        "title": "Setup GeoWeather",
+        "description": "Select the GPS sensors of your device. Latitude, longitude, and speed are required. Altitude and satellites are optional but recommended.",
         "data": {
-          "lat_sensor":       "Breitengrad-Sensor (latitude)",
-          "lon_sensor":       "Längengrad-Sensor (longitude)",
-          "speed_sensor":     "Geschwindigkeits-Sensor (speed km/h)",
-          "alt_sensor":       "Höhen-Sensor (altitude) – optional",
-          "sat_sensor":       "Satelliten-Sensor (satellites) – optional",
-          "speed_threshold":  "Ab dieser Geschwindigkeit gilt das Fahrzeug als fahrend (km/h)",
-          "min_satellites":   "Mindestanzahl Satelliten für einen gültigen GPS-Fix"
+          "lat_sensor": "Latitude sensor",
+          "lon_sensor": "Longitude sensor",
+          "speed_sensor": "Speed sensor (km/h)",
+          "alt_sensor": "Altitude sensor (optional)",
+          "sat_sensor": "Satellites sensor (optional)",
+          "speed_threshold": "Speed threshold for 'moving' state (km/h)",
+          "min_satellites": "Minimum satellites for valid GPS fix",
+          "min_stationary_time": "Required stationary time before update (minutes)"
         }
       }
     },
     "error": {
-      "invalid_speed":       "Geschwindigkeitsschwelle muss ≥ 0 km/h sein.",
-      "invalid_satellites":  "Mindestens 1 Satellit erforderlich."
+      "invalid_speed": "Speed threshold must be ≥ 0 km/h.",
+      "invalid_satellites": "At least 1 satellite required."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "GeoWeather – Optionen",
+        "title": "GeoWeather – Options",
         "data": {
-          "speed_threshold": "Ab dieser Geschwindigkeit gilt das Fahrzeug als fahrend (km/h)",
-          "min_satellites":  "Mindestanzahl Satelliten für einen gültigen GPS-Fix"
+          "speed_threshold": "Speed threshold for 'moving' state (km/h)",
+          "min_satellites": "Minimum satellites for valid GPS fix",
+          "min_stationary_time": "Required stationary time before update (minutes)"
         }
       }
     },
     "error": {
-      "invalid_speed":       "Geschwindigkeitsschwelle muss ≥ 0 km/h sein.",
-      "invalid_satellites":  "Mindestens 1 Satellit erforderlich."
+      "invalid_speed": "Speed threshold must be ≥ 0 km/h.",
+      "invalid_satellites": "At least 1 satellite required."
     }
   },
   "services": {
     "update": {
-      "name": "Standort & Wetter aktualisieren",
-      "description": "Ruft alle DWD-APIs erneut ab (Standort, Warnungen, Pollenflug). Wird ignoriert, wenn der GeoWeather fährt oder der GPS-Fix unzureichend ist."
+      "name": "Update Location & Weather",
+      "description": "Manually trigger an update for all DWD APIs (Location, Warnings, Pollen, Radar)."
     }
   }
 }

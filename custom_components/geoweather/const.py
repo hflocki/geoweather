@@ -36,6 +36,9 @@ URL_DWD_WARNINGS = (
 )
 URL_DWD_POLLEN = "https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json"
 
+URL_DWD_RADAR = (
+    "https://opendata.dwd.de/weather/radar/composite/rv/DE1200_RV_LATEST.tar.bz2"
+)
 # ── DWD lookup tables ────────────────────────────────────────────────────────
 DWD_SEVERITY = {
     10: "Minor",

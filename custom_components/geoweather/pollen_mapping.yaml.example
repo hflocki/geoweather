@@ -1,64 +1,109 @@
-# GeoWeather Pollen Mapping
-# Format: "Offizieller Kreisname": "DWD Region"
+# GeoWeather Pollen-Mapping
+# Format: "Name des Landkreises/Stadt/Teilbegriff": Region_ID
 
-# --- NRW ---
-"Rheinisch-Bergischer Kreis": "Rhein.-Westfäl. Tiefland"
-"Oberbergischer Kreis": "Rhein.-Westfäl. Tiefland"
-"Märkischer Kreis": "Rhein.-Westfäl. Tiefland"
-"Ennepe-Ruhr-Kreis": "Rhein.-Westfäl. Tiefland"
-"Wuppertal": "Rhein.-Westfäl. Tiefland"
-"Remscheid": "Rhein.-Westfäl. Tiefland"
-"Solingen": "Rhein.-Westfäl. Tiefland"
-"Köln": "Rhein.-Westfäl. Tiefland"
-"Düsseldorf": "Rhein.-Westfäl. Tiefland"
-"Duisburg": "Rhein.-Westfäl. Tiefland"
-"Essen": "Rhein.-Westfäl. Tiefland"
-"Oberhausen": "Rhein.-Westfäl. Tiefland"
-"Mülheim an der Ruhr": "Rhein.-Westfäl. Tiefland"
-"Münster": "Ostwestfalen"
-"Bielefeld": "Ostwestfalen"
-"Siegen-Wittgenstein": "Mittelgebirge NRW"
-"Hochsauerlandkreis": "Mittelgebirge NRW"
+# --- SCHLESWIG-HOLSTEIN / HAMBURG ---
+"Hamburg": 10
+"Schleswig": 10
+"Inseln und Marschen": 11
+"Geest": 12
 
-# --- NORDDEUTSCHLAND ---
-"Hamburg": "Schleswig-Holstein und Hamburg"
-"Kiel": "Inseln und Marschen"
-"Lübeck": "Inseln und Marschen"
-"Bremen": "Westl. Niedersachsen/Bremen"
-"Hannover": "Östl. Niedersachsen"
-"Rostock": "Mecklenburg-Vorpommern"
-"Schwerin": "Mecklenburg-Vorpommern"
+# --- MECKLENBURG-VORPOMMERN ---
+"Mecklenburg-Vorpommern": 20
+"Vorpommern": 20
 
-# --- OSTDEUTSCHLAND ---
-"Berlin": "Brandenburg und Berlin"
-"Potsdam": "Brandenburg und Berlin"
-"Magdeburg": "Tiefland Sachsen-Anhalt"
-"Halle (Saale)": "Tiefland Sachsen-Anhalt"
-"Goslar": "Harz"
-"Erfurt": "Tiefland Thüringen"
-"Gera": "Tiefland Thüringen"
-"Oberhof": "Mittelgebirge Thüringen"
-"Leipzig": "Tiefland Sachsen"
-"Dresden": "Tiefland Sachsen"
-"Chemnitz": "Mittelgebirge Sachsen"
+# --- NIEDERSACHSEN / BREMEN ---
+"Bremen": 30
+"Niedersachsen": 30
+"Landkreis Aurich": 31
+"Stade": 31
+"Hannover": 32
+"Göttingen": 32
 
-# --- HESSEN, RLP & SAARLAND ---
-"Kassel": "Nordhessen und hess. Mittelgebirge"
-"Frankfurt am Main": "Rhein-Main"
-"Wiesbaden": "Rhein-Main"
-"Mainz": "Rhein, Pfalz, Nahe und Mosel"
-"Koblenz": "Mittelgebirgsbereich Rheinland-Pfalz"
-"Saarbrücken": "Saarland"
+# --- NORDRHEIN-WESTFALEN ---
+"NRW": 40
+"Rheinland": 41
+"Köln": 41
+"Düsseldorf": 41
+"Rheinisch-Bergischer Kreis": 41
+"Essen": 41
+"Münster": 41
+"Bielefeld": 42
+"Paderborn": 42
+"Westfalen": 42
+"Sauerland": 43
+"Hochsauerlandkreis": 43
+"Eifel": 43
+"Siegen-Wittgenstein": 43
+"Oberbergischer": 43
+
+# --- BRANDENBURG / BERLIN ---
+"Berlin": 50
+"Brandenburg": 50
+
+# --- SACHSEN-ANHALT ---
+"Sachsen-Anhalt": 60
+"Magdeburg": 61
+"Halle (Saale)": 61
+"Landkreis Harz": 62
+"Wernigerode": 62
+
+# --- THÜRINGEN ---
+"Thüringen": 70
+"Erfurt": 71
+"Weimar": 71
+"Jena": 71
+"Thüringer Wald": 72
+
+# --- SACHSEN ---
+"Sachsen": 80
+"Leipzig": 81
+"Dresden": 81
+"Chemnitz": 82
+"Erzgebirge": 82
+
+# --- HESSEN ---
+"Hessen": 90
+"Kassel": 91
+"Fulda": 91
+"Frankfurt": 92
+"Wiesbaden": 92
+"Darmstadt": 92
+"Rhein-Main": 92
+
+# --- RHEINLAND-PFALZ / SAARLAND ---
+"Rheinland-Pfalz": 100
+"Mainz": 101
+"Koblenz": 101
+"Pfalz": 101
+"Nahe": 101
+"Mosel": 101
+"Westerwaldkreis": 102
+"Saarland": 103
+"Saarbrücken": 103
 
 # --- BADEN-WÜRTTEMBERG ---
-"Stuttgart": "Hohenlohe/mittlerer Neckar/Oberschwaben"
-"Mannheim": "Oberrhein und unteres Neckartal"
-"Heidelberg": "Oberrhein und unteres Neckartal"
-"Freiburg im Breisgau": "Mittelgebirge Baden-Württemberg"
+"Baden-Württemberg": 110
+"Baden": 111
+"Karlsruhe": 111
+"Mannheim": 111
+"Heidelberg": 111
+"Stuttgart": 112
+"Oberschwaben": 112
+"Württemberg": 112
+"Freiburg": 113
+"Schwarzwald": 113
 
 # --- BAYERN ---
-"München": "Allgäu/Oberbayern/Bay. Wald"
-"Garmisch-Partenkirchen": "Allgäu/Oberbayern/Bay. Wald"
-"Regensburg": "Donauniederungen"
-"Nürnberg": "Bayern nördl. der Donau, o. Bayr. Wald, o. Mainfranken"
-"Würzburg": "Mainfranken"
+"Bayern": 120
+"München": 121
+"Oberbayern": 121
+"Allgäu": 121
+"Bayerischer Wald": 121
+"Regensburg": 122
+"Passau": 122
+"Donauniederung": 122
+"Nürnberg": 123
+"Augsburg": 123
+"Würzburg": 124
+"Mainfranken": 124
+"Franken": 124
