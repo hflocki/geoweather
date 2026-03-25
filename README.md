@@ -59,6 +59,7 @@ Während der Einrichtung wählst du deine GPS-Sensoren aus:
 | Satelliten-Sensor | ➖ | Optional – ermöglicht Prüfung der GPS-Fix-Qualität |
 | Geschwindigkeits-Schwellenwert | ➖ | Standard: 5.0 km/h – darüber = Fahrzeug fährt |
 | Min. Satelliten | ➖ | Standard: 4 – darunter = schlechter Fix, Update überspringen |
+| Mindest steh Zeit | ➖ | Standard: 10 – manmuss mindestens 10 minuten stehen sonst, Update überspringen |
 
 Funktioniert mit **jeder** GPS-Quelle: ESPHome, GPSd, MQTT-Tracker, Smartphone, etc.
 
