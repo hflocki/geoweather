@@ -134,12 +134,12 @@ Alle verfügbaren Regionen findest du in der `regions.md` im Repository.
     - platform: time_pattern
       hours: /1
     - platform: state
-      entity_id: binary_sensor.geoweather_faehrt
+      entity_id: binary_sensor.faehrt
       from: "on"
       to: "off"
   condition:
     - condition: state
-      entity_id: binary_sensor.geoweather_faehrt
+      entity_id: binary_sensor.faehrt
       state: "off"
   action:
     - service: geoweather.update
@@ -157,7 +157,7 @@ triggers:
 
 conditions:
   - condition: state
-    entity_id: binary_sensor.geoweather_faehrt  # Achte auf die korrekte ID (ae oder ah?)
+    entity_id: binary_sensor.faehrt  # Achte auf die korrekte ID (ae oder ah?)
     state: "off"
   - condition: template
     value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
@@ -176,7 +176,7 @@ actions:
 
 ```yaml
 type: custom:button-card
-entity: sensor.geoweather_warnungen
+entity: sensor.warnungen
 aspect_ratio: 1/1
 show_name: false
 show_label: true
@@ -212,7 +212,7 @@ Markdown-Karte für Warnungsdetails:
 ```yaml
 type: markdown
 content: |
-  {% set warnungen = state_attr('sensor.geoweather_warnungen', 'warnungen') %}
+  {% set warnungen = state_attr('sensor.warnungen', 'warnungen') %}
   {% if warnungen %}
     {% for w in warnungen %}
     ### ⚠️ {{ w.ereignis }}
@@ -241,7 +241,7 @@ cards:
     square: true
     cards:
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Birke
         icon: mdi:tree
         aspect_ratio: 1/1
@@ -267,7 +267,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Gräser
         icon: mdi:grass
         aspect_ratio: 1/1
@@ -292,7 +292,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Roggen
         icon: mdi:barley
         aspect_ratio: 1/1
@@ -317,7 +317,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Erle
         icon: mdi:leaf
         aspect_ratio: 1/1
@@ -342,7 +342,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Hasel
         icon: mdi:nut
         aspect_ratio: 1/1
@@ -367,7 +367,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Esche
         icon: mdi:tree-outline
         aspect_ratio: 1/1
@@ -392,7 +392,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Beifuß
         icon: mdi:sprout
         aspect_ratio: 1/1
@@ -417,7 +417,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Ambrosia
         icon: mdi:flower-tulip
         aspect_ratio: 1/1
@@ -442,7 +442,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
       - type: custom:button-card
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.pollenflug
         name: Eiche
         icon: mdi:tree-outline
         aspect_ratio: 1/1
@@ -467,7 +467,7 @@ cards:
             - font-size: 13px
             - font-weight: bold
   - type: custom:button-card
-    entity: sensor.geoweather_pollenflug
+    entity: sensor.pollenflug
     show_icon: false
     name: |
       [[[ return "Region: " + entity.attributes.dwd_teilregion ]]]
