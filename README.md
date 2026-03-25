@@ -75,11 +75,11 @@ Alle Entitäten werden unter einem gemeinsamen **GeoWeather-Gerät** gruppiert.
 
 | Entität | State | Beschreibung |
 |---|---|---|
-| `sensor.geoweather_standort` | Gemeindename | + Kreis, Bundesland, WarnCellID, GPS-Koordinaten |
-| `sensor.geoweather_warnungen` | Anzahl (Integer) | + vollständige Warnliste in Attributen |
-| `sensor.geoweather_pollenflug` | Höchste Stufe heute | + alle 9 Pollenarten × 3 Tage |
-| `sensor.geoweather_regenvorhersage` | mm/h (aktuell) | + Forecast-Map, Regenstart/-ende |
-| `binary_sensor.geoweather_faehrt` | `on`/`off` | `on` = fährt (Updates pausiert) |
+| `sensor.standort` | Gemeindename | + Kreis, Bundesland, WarnCellID, GPS-Koordinaten |
+| `sensor.warnungen` | Anzahl (Integer) | + vollständige Warnliste in Attributen |
+| `sensor.pollenflug` | Höchste Stufe heute | + alle 9 Pollenarten × 3 Tage |
+| `sensor.regenvorhersage` | mm/h (aktuell) | + Forecast-Map, Regenstart/-ende |
+| `binary_sensor.faehrt` | `on`/`off` | `on` = fährt (Updates pausiert) |
 
 > **Hinweis:** Der Warnungen-Sensor liefert als State eine **Ganzzahl** (0, 1, 2, ...). Das ermöglicht einfache Automationen wie `state > 0` statt String-Vergleiche.
 
