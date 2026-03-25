@@ -61,6 +61,9 @@ Während der Einrichtung wählst du deine GPS-Sensoren aus:
 | Min. Satelliten | ➖ | Standard: 4 – darunter = schlechter Fix, Update überspringen |
 | Mindest steh Zeit | ➖ | Standard: 10 – mann muss mindestens 10 minuten stehen sonst, Update überspringen |
 
+Steh-Zeit
+0–30 Minuten, Schritte à 1 Minute, Standard 10 Minuten, Wert 0 = Feature deaktiviert
+
 Funktioniert mit **jeder** GPS-Quelle: ESPHome, GPSd, MQTT-Tracker, Smartphone, etc.
 
 ---
