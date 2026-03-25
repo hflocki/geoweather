@@ -1,4 +1,4 @@
-<img src="logo/icon.png" alt="GeoWeather Logo" width="150">
+<img src="/custom_components/geoweather/icon.png" alt="GeoWeather Logo" width="150">
 
 <div align="left">
   <h1>GeoWeather for Home Assistant</h1>
