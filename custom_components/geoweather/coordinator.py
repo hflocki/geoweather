@@ -16,10 +16,12 @@ from .const import (
     CONF_LAT_SENSOR,
     CONF_LON_SENSOR,
     CONF_MIN_SATELLITES,
+    CONF_MIN_STATIONARY_TIME,
     CONF_SAT_SENSOR,
     CONF_SPEED_SENSOR,
     CONF_SPEED_THRESHOLD,
     DEFAULT_MIN_SATELLITES,
+    DEFAULT_MIN_STATIONARY_TIME,
     DEFAULT_SPEED_THRESHOLD,
     DOMAIN,
     DWD_EVENT_TYPES,
@@ -42,6 +44,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self.entry = entry
         self.last_skip_reason: str | None = None
         self._pollen_mapping: dict = {}
+        self.stopped_at: datetime | None = None  # Zeitpunkt des letzten Anhaltens
 
     async def async_load_pollen_mapping(self) -> None:
         """Lädt die pollen_mapping.yaml aus dem HA /config/ Verzeichnis."""
@@ -73,6 +76,39 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             self._pollen_mapping = {}
 
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
+        """Service-Handler: prüft Mindest-Standzeit bevor der Abruf ausgelöst wird."""
+        # Bewegungsstatus direkt vom binary_sensor lesen (live, nicht aus Coordinator-Cache)
+        moving_entity = None
+        for state in self.hass.states.async_all("binary_sensor"):
+            if self.entry.entry_id in state.entity_id and "moving" in state.entity_id:
+                moving_entity = state
+                break
+
+        is_moving = moving_entity.state == "on" if moving_entity else self._is_moving()
+
+        if is_moving:
+            # Fahrzeug bewegt sich → Timer zurücksetzen
+            self.stopped_at = None
+        else:
+            # Fahrzeug steht → Timer starten falls noch nicht gestartet
+            if self.stopped_at is None:
+                self.stopped_at = datetime.now()
+
+            # Mindest-Standzeit prüfen
+            standing_seconds = (datetime.now() - self.stopped_at).total_seconds()
+            standing_minutes = standing_seconds / 60
+            min_time = float(
+                self._cfg(CONF_MIN_STATIONARY_TIME, DEFAULT_MIN_STATIONARY_TIME)
+            )
+
+            if standing_minutes < min_time:
+                self.last_skip_reason = (
+                    f"Fahrzeug steht erst seit {int(standing_minutes)} Min "
+                    f"(Limit: {min_time:.0f} Min) – Update übersprungen"
+                )
+                _LOGGER.debug(self.last_skip_reason)
+                return  # Kein Refresh – zu kurz gestanden
+
         await self.async_refresh()
 
     def _cfg(self, key, default=None):
@@ -108,6 +144,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         if self._is_moving():
             speed = self._float_state(self._cfg(CONF_SPEED_SENSOR))
             self.last_skip_reason = f"Fahrzeug faehrt ({speed} km/h)"
+            self.stopped_at = None  # Timer zurücksetzen
             _LOGGER.debug(self.last_skip_reason)
             return self.data or {}
 
