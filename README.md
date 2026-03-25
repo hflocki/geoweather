@@ -147,23 +147,27 @@ Alle verfügbaren Regionen findest du in der `regions.md` im Repository.
 ```
 
 ```yaml
-# Update nach deutlicher Positionsänderung (~1 km)
-- alias: "GeoWeather – nach Positionswechsel"
-  id: geoweather_position_change
-  trigger:
-    - platform: state
-      entity_id: sensor.mein_gps_latitude
-  condition:
-    - condition: state
-      entity_id: binary_sensor.geoweather_faehrt
-      state: "off"
-    - condition: template
-      value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
-    - condition: template
-      value_template: "{{ (trigger.from_state.state | float - trigger.to_state.state | float) | abs > 0.01 }}"
-  action:
-    - service: geoweather.update
-      data: {}
+alias: "GeoWeather – Update nach Positionswechsel"
+description: "Triggered ein manuelles Update, wenn der Camper steht und sich die Position signifikant geändert hat."
+mode: single
+
+triggers:
+  - trigger: state
+    entity_id: sensor.espgeopos_latitude_2
+
+conditions:
+  - condition: state
+    entity_id: binary_sensor.geoweather_faehrt  # Achte auf die korrekte ID (ae oder ah?)
+    state: "off"
+  - condition: template
+    value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
+  - condition: template
+    value_template: >-
+      {{ (trigger.from_state.state | float(0) - trigger.to_state.state | float(0)) | abs > 0.01 }}
+
+actions:
+  - action: geoweather.update
+    data: {}
 ```
 
 ---
