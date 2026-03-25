@@ -162,6 +162,81 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
 
 ### Beispiel Dashboard Karte
 
+
+```yaml
+type: custom:button-card
+entity: sensor.warnungen
+aspect_ratio: 1/1
+show_name: false
+show_label: true
+label: |-
+  [[[ 
+    const anzahl = parseInt(entity.state);
+    const warnings = entity.attributes.warnungen;
+    if (isNaN(anzahl) || anzahl === 0 || !warnings || warnings.length === 0) return 'Alles ok';
+    // Zeige das Ereignis der ersten Warnung (z.B. Frost)
+    return warnings[0].ereignis; 
+  ]]]
+icon: mdi:shield-check
+size: 45%
+state:
+  - operator: template
+    value: |-
+      [[[ 
+        const warnings = entity.attributes.warnungen;
+        return warnings && warnings.length > 0 && parseInt(warnings[0].schwere_level) >= 3;
+      ]]]
+    styles:
+      icon:
+        - animation: blink 2s ease-in-out infinite
+      label:
+        - animation: blink 2s ease-in-out infinite
+styles:
+  grid:
+    - grid-template-areas: "\"i\" \"l\" \"s\""
+    - grid-template-rows: 1fr auto min-content
+  card:
+    - padding: 5px
+    - background-color: |-
+        [[[ 
+          const warnings = entity.attributes.warnungen;
+          if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
+          
+          const level = parseInt(warnings[0].schwere_level);
+          // Farbskala basierend auf schwere_level
+          if (level <= 1) return '#ffeb3b'; // Gelb (Minor)
+          if (level === 2) return '#fb8c00'; // Orange (Moderate)
+          if (level === 3) return '#e53935'; // Rot (Severe)
+          if (level >= 4) return '#880e4f';  // Violett (Extreme)
+          return 'var(--card-background-color)';
+        ]]]
+  icon:
+    - color: |-
+        [[[ 
+          const warnings = entity.attributes.warnungen;
+          if (!warnings || warnings.length === 0) return '#c5e566';
+          const level = parseInt(warnings[0].schwere_level);
+          return (level <= 2) ? 'black' : 'white'; 
+        ]]]
+  label:
+    - font-size: 10px
+    - font-weight: bold
+    - justify-self: center
+    - text-wrap: wrap
+    - color: |-
+        [[[ 
+          const warnings = entity.attributes.warnungen;
+          if (!warnings || warnings.length === 0) return 'var(--primary-text-color)';
+          const level = parseInt(warnings[0].schwere_level);
+          return (level <= 2) ? 'black' : 'white'; 
+        ]]]
+  state:
+    - font-size: 9px
+    - color: var(--secondary-text-color)
+    - justify-self: center
+
+```
+
 ```yaml
 type: custom:button-card
 entity: sensor.pollenflug
