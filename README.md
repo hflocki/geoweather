@@ -615,4 +615,4 @@ cards:
 
 
 ## Credits
-DWD data via [DWD OpenData](https://opendata.dwd.de).
+DWD data via [DWD OpenData](https://opendata.dwd.de). [Copyright](https://www.dwd.de/DE/service/rechtliche_hinweise/rechtliche_hinweise.html)
