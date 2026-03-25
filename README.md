@@ -616,6 +616,9 @@ cards:
 
 ## Credits
 DWD data via [DWD OpenData](https://opendata.dwd.de). [Copyright](https://www.dwd.de/DE/service/rechtliche_hinweise/rechtliche_hinweise.html)
+
 [DWD Pollenflug](https://github.com/mampfes/hacs_dwd_pollenflug)
+
 [DWD Precipitation Forecast](https://github.com/stoppegp/ha-dwd-precipitation-forecast)
+
 [DWD Weather](https://github.com/FL550/dwd_weather)
