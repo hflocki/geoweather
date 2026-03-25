@@ -3,20 +3,21 @@
 DOMAIN = "geoweather"
 
 # ── Config entry keys ────────────────────────────────────────────────────────
-CONF_LAT_SENSOR       = "lat_sensor"
-CONF_LON_SENSOR       = "lon_sensor"
-CONF_SPEED_SENSOR     = "speed_sensor"
-CONF_ALT_SENSOR       = "alt_sensor"       # optional
-CONF_SAT_SENSOR       = "sat_sensor"       # optional
-CONF_SPEED_THRESHOLD  = "speed_threshold"
-CONF_MIN_SATELLITES   = "min_satellites"
-
+CONF_LAT_SENSOR = "lat_sensor"
+CONF_LON_SENSOR = "lon_sensor"
+CONF_SPEED_SENSOR = "speed_sensor"
+CONF_ALT_SENSOR = "alt_sensor"  # optional
+CONF_SAT_SENSOR = "sat_sensor"  # optional
+CONF_SPEED_THRESHOLD = "speed_threshold"
+CONF_MIN_SATELLITES = "min_satellites"
+CONF_MIN_STATIONARY_TIME = "min_stationary_time"
 # ── Defaults ─────────────────────────────────────────────────────────────────
-DEFAULT_SPEED_THRESHOLD = 5.0   # km/h  – above this = moving
-DEFAULT_MIN_SATELLITES  = 4     # below this = bad GPS fix
+DEFAULT_SPEED_THRESHOLD = 5.0  # km/h  – above this = moving
+DEFAULT_MIN_SATELLITES = 4  # below this = bad GPS fix
+DEFAULT_MIN_STATIONARY_TIME = 10  # Minuten
 
 # ── Service name ─────────────────────────────────────────────────────────────
-SERVICE_UPDATE = "update"       # called as geoweather.update
+SERVICE_UPDATE = "update"  # called as geoweather.update
 
 # ── DWD API endpoints ────────────────────────────────────────────────────────
 URL_DWD_WARNCELL = (
@@ -33,9 +34,7 @@ URL_DWD_WARNINGS = (
     "&outputFormat=application/json"
     "&bbox={south},{west},{north},{east},urn:ogc:def:crs:EPSG::4326"
 )
-URL_DWD_POLLEN = (
-    "https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json"
-)
+URL_DWD_POLLEN = "https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json"
 
 # ── DWD lookup tables ────────────────────────────────────────────────────────
 DWD_SEVERITY = {
@@ -97,6 +96,13 @@ DWD_EVENT_TYPES = {
 
 # ── Pollen ───────────────────────────────────────────────────────────────────
 POLLEN_TYPES = [
-    "Birke", "Graeser", "Roggen", "Erle",
-    "Hasel", "Esche", "Ambrosia", "Beifuss", "Eiche",
+    "Birke",
+    "Graeser",
+    "Roggen",
+    "Erle",
+    "Hasel",
+    "Esche",
+    "Ambrosia",
+    "Beifuss",
+    "Eiche",
 ]
