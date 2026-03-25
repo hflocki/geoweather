@@ -1,4 +1,5 @@
 """Binary sensor: Is the vehicle currently moving?"""
+
 from __future__ import annotations
 
 from homeassistant.components.binary_sensor import (
@@ -10,14 +11,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
-    DOMAIN,
-    CONF_SPEED_SENSOR,
     CONF_ALT_SENSOR,
-    CONF_SAT_SENSOR,
-    CONF_SPEED_THRESHOLD,
     CONF_MIN_SATELLITES,
-    DEFAULT_SPEED_THRESHOLD,
+    CONF_SAT_SENSOR,
+    CONF_SPEED_SENSOR,
+    CONF_SPEED_THRESHOLD,
     DEFAULT_MIN_SATELLITES,
+    DEFAULT_SPEED_THRESHOLD,
+    DOMAIN,
 )
 from .coordinator import GeoWeatherCoordinator
 
@@ -71,7 +72,7 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
         """ON wenn Fahrzeug fährt (Speed > Schwellenwert)."""
         speed_entity = self._entry.data.get(CONF_SPEED_SENSOR)
         state = self.hass.states.get(speed_entity)
-        
+
         try:
             if state and state.state not in ("unknown", "unavailable"):
                 speed = float(str(state.state).replace(",", "."))
@@ -86,20 +87,28 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        speed      = self._float(self._cfg(CONF_SPEED_SENSOR))
-        altitude   = self._float(self._cfg(CONF_ALT_SENSOR))
+        speed = self._float(self._cfg(CONF_SPEED_SENSOR))
+        altitude = self._float(self._cfg(CONF_ALT_SENSOR))
         satellites = self._float(self._cfg(CONF_SAT_SENSOR))
-        threshold  = float(self._cfg(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD))
-        min_sats   = float(self._cfg(CONF_MIN_SATELLITES,  DEFAULT_MIN_SATELLITES))
+        threshold = float(self._cfg(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD))
+        min_sats = float(self._cfg(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES))
+
+        stopped_at = getattr(self._coordinator, "stopped_at", None)
+        from datetime import datetime
+
+        standzeit_min = None
+        if stopped_at is not None and not self.is_on:
+            standzeit_min = round((datetime.now() - stopped_at).total_seconds() / 60, 1)
 
         return {
-            "geschwindigkeit_kmh":  speed,
-            "schwellenwert_kmh":    threshold,
-            "hoehe_m":              altitude,
-            "satelliten":           satellites,
-            "min_satelliten":       min_sats,
-            "gps_fix_ok":           (satellites >= min_sats) if satellites is not None else None,
-            "letzter_skip_grund":   getattr(self._coordinator, 'last_skip_reason', None),
+            "geschwindigkeit_kmh": speed,
+            "schwellenwert_kmh": threshold,
+            "hoehe_m": altitude,
+            "satelliten": satellites,
+            "min_satelliten": min_sats,
+            "gps_fix_ok": (satellites >= min_sats) if satellites is not None else None,
+            "letzter_skip_grund": getattr(self._coordinator, "last_skip_reason", None),
+            "standzeit_minuten": standzeit_min,
         }
 
     async def async_update(self) -> None:
