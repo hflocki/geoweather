@@ -2,5 +2,6 @@
   "name": "GeoWeather",
   "content_in_root": false,
   "render_readme": true,
-  "homeassistant": "2023.6.0"
+  "homeassistant": "2023.6.0",
+  "icon": "custom_components/geoweather/icon.png"
 }
