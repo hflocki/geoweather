@@ -162,7 +162,6 @@ Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Har
 
 ### Beispiel Dashboard Karte - Warnungen
 
-
 ```yaml
 type: custom:button-card
 entity: sensor.warnungen
@@ -239,7 +238,6 @@ styles:
 
 ### Beispiel Dashboard Karte - Pollen Kachel
 
-
 ```yaml
 type: custom:button-card
 entity: sensor.pollenflug
@@ -303,8 +301,42 @@ styles:
         ]]]
 ```
 
-### Beispiel Dashboard Karte - Pollen Übersicht
+### Beispiel Dashboard Karte - Warn Übersicht
 
+```yaml
+
+type: conditional
+conditions:
+  - entity: sensor.warnungen
+    state_not: "0"
+  - entity: sensor.warnungen
+    state_not: unavailable
+  - entity: sensor.warnungen
+    state_not: unknown
+card:
+  type: markdown
+  content: >
+    # ⛈️ Wetterwarnungen
+
+    {% set warnungen = state_attr('sensor.warnungen', 'warnungen') %} {% if
+    warnungen %}
+      {% for w in warnungen %}
+      ### ⚠️ {{ w.ereignis }}
+      **{{ w.headline }}**
+      
+      *🕒 {{ as_timestamp(w.beginn) | timestamp_custom('%H:%M') }} - {{ as_timestamp(w.ende) | timestamp_custom('%H:%M Uhr') }}*
+
+      > {{ w.beschreibung }}
+
+      ---
+      {% endfor %}
+    {% else %}
+      *Aktuell liegen keine detaillierten Warnmeldungen vor.*
+    {% endif %}
+
+```
+
+### Beispiel Dashboard Karte - Pollen Übersicht
 
 ```yaml
 type: vertical-stack
