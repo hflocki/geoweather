@@ -1,19 +1,22 @@
 """Config Flow for GeoWeather."""
+
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.helpers import selector
 
 from .const import (
-    DOMAIN,
+    CONF_ALT_SENSOR,
     CONF_LAT_SENSOR,
     CONF_LON_SENSOR,
-    CONF_SPEED_SENSOR,
-    CONF_ALT_SENSOR,
-    CONF_SAT_SENSOR,
-    CONF_SPEED_THRESHOLD,
     CONF_MIN_SATELLITES,
-    DEFAULT_SPEED_THRESHOLD,
+    CONF_MIN_STATIONARY_TIME,
+    CONF_SAT_SENSOR,
+    CONF_SPEED_SENSOR,
+    CONF_SPEED_THRESHOLD,
     DEFAULT_MIN_SATELLITES,
+    DEFAULT_MIN_STATIONARY_TIME,
+    DEFAULT_SPEED_THRESHOLD,
+    DOMAIN,
 )
 
 _ENTITY_SELECTOR = selector.EntitySelector(
@@ -27,7 +30,9 @@ _ENTITY_SELECTOR_OPT = selector.EntitySelector(
 def _number(min_, max_, step, unit):
     return selector.NumberSelector(
         selector.NumberSelectorConfig(
-            min=min_, max=max_, step=step,
+            min=min_,
+            max=max_,
+            step=step,
             unit_of_measurement=unit,
             mode=selector.NumberSelectorMode.BOX,
         )
@@ -53,20 +58,27 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data=user_input,
                 )
 
-        schema = vol.Schema({
-            # ── Required GPS sensors ──────────────────────────────────────
-            vol.Required(CONF_LAT_SENSOR):  _ENTITY_SELECTOR,
-            vol.Required(CONF_LON_SENSOR):  _ENTITY_SELECTOR,
-            vol.Required(CONF_SPEED_SENSOR): _ENTITY_SELECTOR,
-            # ── Optional GPS sensors ──────────────────────────────────────
-            vol.Optional(CONF_ALT_SENSOR):  _ENTITY_SELECTOR_OPT,
-            vol.Optional(CONF_SAT_SENSOR):  _ENTITY_SELECTOR_OPT,
-            # ── Behaviour ─────────────────────────────────────────────────
-            vol.Optional(CONF_SPEED_THRESHOLD, default=DEFAULT_SPEED_THRESHOLD):
-                _number(0, 50, 0.5, "km/h"),
-            vol.Optional(CONF_MIN_SATELLITES, default=DEFAULT_MIN_SATELLITES):
-                _number(1, 20, 1, "Satelliten"),
-        })
+        schema = vol.Schema(
+            {
+                # ── Required GPS sensors ──────────────────────────────────────
+                vol.Required(CONF_LAT_SENSOR): _ENTITY_SELECTOR,
+                vol.Required(CONF_LON_SENSOR): _ENTITY_SELECTOR,
+                vol.Required(CONF_SPEED_SENSOR): _ENTITY_SELECTOR,
+                # ── Optional GPS sensors ──────────────────────────────────────
+                vol.Optional(CONF_ALT_SENSOR): _ENTITY_SELECTOR_OPT,
+                vol.Optional(CONF_SAT_SENSOR): _ENTITY_SELECTOR_OPT,
+                # ── Behaviour ─────────────────────────────────────────────────
+                vol.Optional(
+                    CONF_SPEED_THRESHOLD, default=DEFAULT_SPEED_THRESHOLD
+                ): _number(0, 50, 0.5, "km/h"),
+                vol.Optional(
+                    CONF_MIN_SATELLITES, default=DEFAULT_MIN_SATELLITES
+                ): _number(1, 20, 1, "Satelliten"),
+                vol.Optional(
+                    CONF_MIN_STATIONARY_TIME, default=DEFAULT_MIN_STATIONARY_TIME
+                ): _number(0, 30, 1, "Minuten"),
+            }
+        )
 
         return self.async_show_form(
             step_id="user",
@@ -97,16 +109,24 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
             else:
                 return self.async_create_entry(title="", data=user_input)
 
-        schema = vol.Schema({
-            vol.Optional(
-                CONF_SPEED_THRESHOLD,
-                default=merged.get(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD),
-            ): _number(0, 50, 0.5, "km/h"),
-            vol.Optional(
-                CONF_MIN_SATELLITES,
-                default=merged.get(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES),
-            ): _number(1, 20, 1, "Satelliten"),
-        })
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_SPEED_THRESHOLD,
+                    default=merged.get(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD),
+                ): _number(0, 50, 0.5, "km/h"),
+                vol.Optional(
+                    CONF_MIN_SATELLITES,
+                    default=merged.get(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES),
+                ): _number(1, 20, 1, "Satelliten"),
+                vol.Optional(
+                    CONF_MIN_STATIONARY_TIME,
+                    default=merged.get(
+                        CONF_MIN_STATIONARY_TIME, DEFAULT_MIN_STATIONARY_TIME
+                    ),
+                ): _number(0, 30, 1, "Minuten"),
+            }
+        )
 
         return self.async_show_form(
             step_id="init",
