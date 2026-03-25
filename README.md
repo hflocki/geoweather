@@ -104,7 +104,7 @@ Die Integration liefert die präzisen Stufen des DWD. In Dashboards sollte bei Z
 
 Der DWD liefert Pollendaten nicht nach Kreisen, sondern nach Regionen (z.B. "Harz"). 
 
-**Wichtig:** Damit die Zuordnung funktioniert, erstelle eine Datei namens `pollen_mapping.yaml` direkt in deinem Home Assistant `/config/` Ordner (nicht im Integration-Ordner!).
+**Wichtig:** Damit die Zuordnung funktioniert, erstelle eine Datei namens `pollen_mapping.yaml` direkt in deinem Home Assistant `/config/` Ordner (nicht im Integration-Ordner!). (Alle Regionen stehen in der `regions.md`)
 
 **Format der `pollen_mapping.yaml`:**
 ```yaml
