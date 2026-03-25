@@ -2,8 +2,6 @@
   "domain": "geoweather",
   "name": "GeoWeather",
   "config_flow": true,
-  "documentation": "https://github.com/hflocki/geoweather",
-  "issue_tracker": "https://github.com/hflocki/geoweather/issues",
   "requirements": ["numpy"],
   "dependencies": [],
   "codeowners": ["@hflocki"],
