@@ -1,0 +1,40 @@
+- id: geoweather_periodic_update
+  alias: GeoWeather – periodisch aktualisieren
+  triggers:
+  - trigger: time_pattern
+    hours: /1
+  - entity_id:
+    - binary_sensor.fahrt
+    from:
+    - 'on'
+    to:
+    - 'off'
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.fahrt
+    state:
+    - 'off'
+  actions:
+  - data: {}
+    action: geoweather.update
+- id: geoweather_position_change
+  alias: GeoWeather – nach Positionswechsel
+  triggers:
+  - entity_id:
+    - sensor.espgeopos_latitude_2
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.fahrt
+    state:
+    - 'off'
+  - condition: template
+    value_template: '{{ is_number(trigger.from_state.state) and is_number(trigger.to_state.state)
+      }}'
+  - condition: template
+    value_template: "{% set old = trigger.from_state.state | float(0) %}\n  {% set
+      new = trigger.to_state.state | float(0) %}\n  {{ (old - new) | abs > 0.01 }}"
+  actions:
+  - data: {}
+    action: geoweather.update
