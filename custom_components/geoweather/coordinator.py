@@ -290,57 +290,71 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
     # ── DWD: Pollen (mit 12h-Cache) ───────────────────────────────────────────
 
-    async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
-        now = datetime.now(timezone.utc)
+    async def _fetch_pollen(self, session, kreis: str) -> dict:
+        """Pollen-Abruf mit 12h Cache und Standort-Check."""
+        lat = self._float_state(self._cfg(CONF_LAT_SENSOR))
+        lon = self._float_state(self._cfg(CONF_LON_SENSOR))
+        
+        # Prüfen, ob wir Cache-Daten nutzen können
+        if self.data and "pollen" in self.data and "gps" in self.data:
+            last_pollen_update = self.data.get("last_updated")
+            old_gps = self.data.get("gps", {})
+            
+            if last_pollen_update:
+                last_time = datetime.fromisoformat(last_pollen_update)
+                time_delta = datetime.now() - last_time
+                
+                # Check: Standort identisch (bis auf 0.01 Grad) UND Zeit < 12h?
+                loc_changed = (
+                    abs(old_gps.get("latitude", 0) - (lat or 0)) > 0.01 or
+                    abs(old_gps.get("longitude", 0) - (lon or 0)) > 0.01
+                )
+                
+                if not loc_changed and time_delta < timedelta(hours=12):
+                    _LOGGER.debug("GeoWeather: Nutze Pollen-Cache (Standort unverändert & < 12h)")
+                    return self.data["pollen"]
 
-        # Cache nutzen solange frisch
-        if self._pollen_cache is not None:
-            cached_at, cached_json = self._pollen_cache
-            age_h = (now - cached_at).total_seconds() / 3600
-            if age_h < _POLLEN_CACHE_HOURS:
-                _LOGGER.debug("Pollen: Cache genutzt (%.1f h alt)", age_h)
-                return self._build_pollen_result(cached_json, kreis)
+        # Wenn kein Cache, Standort geändert oder Cache zu alt: Neu abrufen
+        _LOGGER.info("GeoWeather: Lade Pollen-Daten frisch vom DWD (Standortwechsel oder Cache abgelaufen)")
+        
+        try:
+            async with session.get(URL_DWD_POLLEN, timeout=_TIMEOUT) as resp:
+                resp.raise_for_status()
+                json_data = await resp.json(content_type=None)
 
-        async with session.get(URL_DWD_POLLEN, timeout=_TIMEOUT) as resp:
-            resp.raise_for_status()
-            json_data = await resp.json(content_type=None)
+            # Dein Word-Matching
+            search_term = self._pollen_mapping.get(kreis, kreis)
+            match = None
 
-        self._pollen_cache = (now, json_data)
-        _LOGGER.debug("Pollen: frisch geladen und gecacht")
-        return self._build_pollen_result(json_data, kreis)
+            for item in json_data.get("content", []):
+                rname = str(item.get("region_name", "")).lower()
+                pname = str(item.get("partregion_name", "")).lower()
+                target = str(search_term).lower()
 
-    def _build_pollen_result(self, json_data: dict, kreis: str) -> dict:
-        search = self._pollen_mapping.get(kreis, kreis)
-        match = None
-        for item in json_data.get("content", []):
-            rid   = item.get("region_id")
-            rname = str(item.get("region_name",    "")).lower()
-            pname = str(item.get("partregion_name","")).lower()
-            if str(rid) == str(search):
-                match = item
-                break
-            if str(search).lower() in rname or str(search).lower() in pname:
-                match = item
-                break
+                if target in rname or target in pname:
+                    match = item
+                    break
 
-        if not match:
-            _LOGGER.warning("Pollen: Region '%s' nicht gefunden (Kreis: '%s'). Bitte pollen_mapping.yaml prüfen.", search, kreis)
-            return {"status": "Region nicht gefunden", "kreis": kreis, "gesuchte_region": search}
+            if not match:
+                return {"status": "Region nicht gefunden", "gesucht": search_term}
 
-        p_vals = match.get("Pollen", {})
-        result: dict = {
-            "status":         "OK",
-            "dwd_region":     str(match.get("region_name",    "Unbekannt")),
-            "dwd_teilregion": str(match.get("partregion_name","")),
-            "region_id":      match.get("region_id"),
-        }
-        for pt in POLLEN_TYPES:
-            d   = p_vals.get(pt, {})
-            key = pt.lower()
-            result[f"{key}_heute"]       = _parse_pollen(d.get("today"))
-            result[f"{key}_morgen"]      = _parse_pollen(d.get("tomorrow"))
-            result[f"{key}_uebermorgen"] = _parse_pollen(d.get("dayafter_to"))
-        return result
+            p_vals = match.get("Pollen", {})
+            res = {
+                "status": "OK",
+                "dwd_region": match.get("region_name"),
+                "dwd_teilregion": match.get("partregion_name"),
+            }
+            for pt in POLLEN_TYPES:
+                d = p_vals.get(pt, {})
+                res[f"{pt.lower()}_heute"] = _parse_pollen(d.get("today"))
+                res[f"{pt.lower()}_morgen"] = _parse_pollen(d.get("tomorrow"))
+                res[f"{pt.lower()}_uebermorgen"] = _parse_pollen(d.get("dayafter_to"))
+            
+            return res
+            
+        except Exception as e:
+            _LOGGER.error("GeoWeather: Pollen Fehler: %s", e)
+            return self.data.get("pollen") if self.data else {"status": "Fehler"}
 
     # ── DWD: Radar via DWDRadar-Klasse (mit ETag-Cache) ──────────────────────
 
