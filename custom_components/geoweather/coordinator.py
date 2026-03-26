@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import aiohttp
@@ -93,6 +93,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         # Fahrstatus live vom binary_sensor lesen
         moving_entity = None
         for state in self.hass.states.async_all("binary_sensor"):
+            # Wir suchen nach der Kombination aus deiner Entry-ID und dem Wort 'moving'
             if self.entry.entry_id in state.entity_id and "moving" in state.entity_id:
                 moving_entity = state
                 break
@@ -105,7 +106,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             _LOGGER.debug(self.last_skip_reason)
             return
 
-        # Timer starten
+        # Timer starten (timezone-aware)
         if self.stopped_at is None:
             self.stopped_at = datetime.now(timezone.utc)
 
@@ -185,10 +186,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         lon = self._float_state(lon_id)
 
         if lat is None or lon is None:
-            lat_val = getattr(self.hass.states.get(lat_id), "state", "nicht gefunden")
-            lon_val = getattr(self.hass.states.get(lon_id), "state", "nicht gefunden")
-            self.last_skip_reason = f"GPS nicht lesbar – lat='{lat_id}'({lat_val}) lon='{lon_id}'({lon_val})"
-            _LOGGER.warning("GeoWeather GPS: lat_sensor='%s'=%s | lon_sensor='%s'=%s", lat_id, lat_val, lon_id, lon_val)
             return self.data or {}
 
         try:
@@ -203,8 +200,8 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         return {
             "location":     location,
             "warnings":     warnings,
-            "pollen":       pollen,
-            "regen":        regen,
+            "pollen":        pollen,
+            "regen":         regen,
             "gps": {
                 "latitude":   lat,
                 "longitude":  lon,
@@ -256,19 +253,12 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             raw_sev  = p.get("SEVERITY", 0)
             try:
                 code = int(raw_code)
-            except (ValueError, TypeError):
-                code = 0
-            try:
                 sev = int(raw_sev)
             except (ValueError, TypeError):
+                code = 0
                 sev = 0
 
-            if code and code in DWD_EVENT_TYPES:
-                ereignis = DWD_EVENT_TYPES[code]
-            elif isinstance(raw_code, str) and raw_code:
-                ereignis = raw_code.capitalize()
-            else:
-                ereignis = f"Code {raw_code}"
+            ereignis = DWD_EVENT_TYPES.get(code, f"Code {raw_code}")
 
             items.append({
                 "ereignis":      ereignis,
@@ -291,7 +281,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
     # ── DWD: Pollen (mit 12h-Cache) ───────────────────────────────────────────
 
     async def _fetch_pollen(self, session, kreis: str) -> dict:
-        """Pollen-Abruf mit 12h Cache und Standort-Check."""
+        """Pollen-Abruf mit 12h Cache und Standort-Check """
         lat = self._float_state(self._cfg(CONF_LAT_SENSOR))
         lon = self._float_state(self._cfg(CONF_LON_SENSOR))
         
@@ -302,7 +292,11 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             
             if last_pollen_update:
                 last_time = datetime.fromisoformat(last_pollen_update)
-                time_delta = datetime.now() - last_time
+                if last_time.tzinfo is None:
+                    last_time = last_time.replace(tzinfo=timezone.utc)
+                
+                now_aware = datetime.now(timezone.utc)
+                time_delta = now_aware - last_time
                 
                 # Check: Standort identisch (bis auf 0.01 Grad) UND Zeit < 12h?
                 loc_changed = (
@@ -310,19 +304,19 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                     abs(old_gps.get("longitude", 0) - (lon or 0)) > 0.01
                 )
                 
-                if not loc_changed and time_delta < timedelta(hours=12):
+                if not loc_changed and time_delta < timedelta(hours=_POLLEN_CACHE_HOURS):
                     _LOGGER.debug("GeoWeather: Nutze Pollen-Cache (Standort unverändert & < 12h)")
                     return self.data["pollen"]
 
-        # Wenn kein Cache, Standort geändert oder Cache zu alt: Neu abrufen
-        _LOGGER.info("GeoWeather: Lade Pollen-Daten frisch vom DWD (Standortwechsel oder Cache abgelaufen)")
+        # Wenn kein Cache oder Standort geändert: Neu abrufen
+        _LOGGER.info("GeoWeather: Lade Pollen-Daten frisch")
         
         try:
             async with session.get(URL_DWD_POLLEN, timeout=_TIMEOUT) as resp:
                 resp.raise_for_status()
                 json_data = await resp.json(content_type=None)
 
-            # Dein Word-Matching
+            # Word-Matching Logik
             search_term = self._pollen_mapping.get(kreis, kreis)
             match = None
 
@@ -336,6 +330,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                     break
 
             if not match:
+                _LOGGER.warning("GeoWeather: Keine Region für '%s' gefunden", search_term)
                 return {"status": "Region nicht gefunden", "gesucht": search_term}
 
             p_vals = match.get("Pollen", {})
@@ -363,9 +358,9 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                   "next_length": None, "next_max_mmh": None, "next_sum_mm": None}
 
         # Koordinaten vorab prüfen
-        radar = DWDRadar()
+        radar_api = DWDRadar()
         try:
-            radar.get_location_index(lat, lon)  # wirft NotInAreaError wenn außerhalb
+            radar_api.get_location_index(lat, lon)
         except NotInAreaError as exc:
             _LOGGER.warning("Radar: %s", exc)
             return _empty
@@ -384,12 +379,12 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             else:
                 resp.raise_for_status()
                 content = await resp.read()
-                self._radar_bytes         = content
-                self._radar_etag          = resp.headers.get("ETag")
+                self._radar_bytes          = content
+                self._radar_etag           = resp.headers.get("ETag")
                 self._radar_last_modified = resp.headers.get("Last-Modified")
                 _LOGGER.debug("Radar: neu geladen (%d KB)", len(content) // 1024)
 
-        # Verarbeitung im Thread-Pool (blocking numpy/tarfile)
+        # Verarbeitung im Thread-Pool
         def _process() -> dict:
             r = DWDRadar()
             r.load_from_bytes(content)
@@ -398,12 +393,12 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             next_precip  = r.get_next_precipitation(lat, lon)
             return {
                 "aktuell":      current,
-                "forecast":     forecast,
-                "next_start":   next_precip["start"],
-                "next_end":     next_precip["end"],
-                "next_length":  next_precip["length_min"],
-                "next_max_mmh": next_precip["max_mmh"],
-                "next_sum_mm":  next_precip["sum_mm"],
+                "forecast":      forecast,
+                "next_start":    next_precip.get("start"),
+                "next_end":      next_precip.get("end"),
+                "next_length":   next_precip.get("length"),
+                "next_max_mmh":  next_precip.get("max"),
+                "next_sum_mm":   next_precip.get("sum"),
             }
 
         return await self.hass.async_add_executor_job(_process)
