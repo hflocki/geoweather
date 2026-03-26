@@ -52,8 +52,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self.last_skip_reason: str | None = None
         self._pollen_mapping: dict = {}
         self.stopped_at: datetime | None = None
-        # Pollen-Cache: (timestamp_utc, raw_json)
-        self._pollen_cache: tuple[datetime, dict] | None = None
         # Radar HTTP-Cache
         self._radar_etag: str | None = None
         self._radar_last_modified: str | None = None
@@ -93,7 +91,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         # Fahrstatus live vom binary_sensor lesen
         moving_entity = None
         for state in self.hass.states.async_all("binary_sensor"):
-            # Wir suchen nach der Kombination aus deiner Entry-ID und dem Wort 'moving'
             if self.entry.entry_id in state.entity_id and "moving" in state.entity_id:
                 moving_entity = state
                 break
@@ -200,8 +197,8 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         return {
             "location":     location,
             "warnings":     warnings,
-            "pollen":        pollen,
-            "regen":         regen,
+            "pollen":       pollen,
+            "regen":        regen,
             "gps": {
                 "latitude":   lat,
                 "longitude":  lon,
@@ -251,14 +248,24 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             p = feat.get("properties", {})
             raw_code = p.get("EVENT", 0)
             raw_sev  = p.get("SEVERITY", 0)
+            
+            # Ereignis-Name bestimmen (Zahl vs. Text-Fallabfrage)
             try:
-                code = int(raw_code)
+                code_int = int(raw_code)
+                if code_int in DWD_EVENT_TYPES:
+                    ereignis = DWD_EVENT_TYPES[code_int]
+                else:
+                    ereignis = f"Code {raw_code}"
+            except (ValueError, TypeError):
+                if isinstance(raw_code, str) and raw_code:
+                    ereignis = raw_code.capitalize()
+                else:
+                    ereignis = f"Code {raw_code}"
+
+            try:
                 sev = int(raw_sev)
             except (ValueError, TypeError):
-                code = 0
                 sev = 0
-
-            ereignis = DWD_EVENT_TYPES.get(code, f"Code {raw_code}")
 
             items.append({
                 "ereignis":      ereignis,
@@ -372,36 +379,44 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         if self._radar_last_modified:
             headers["If-Modified-Since"] = self._radar_last_modified
 
-        async with session.get(URL_DWD_RADAR, timeout=_TIMEOUT, headers=headers) as resp:
-            if resp.status == 304 and self._radar_bytes is not None:
-                _LOGGER.debug("Radar: 304 Not Modified – Cache genutzt")
-                content = self._radar_bytes
-            else:
-                resp.raise_for_status()
-                content = await resp.read()
-                self._radar_bytes          = content
-                self._radar_etag           = resp.headers.get("ETag")
-                self._radar_last_modified = resp.headers.get("Last-Modified")
-                _LOGGER.debug("Radar: neu geladen (%d KB)", len(content) // 1024)
+        try:
+            async with session.get(URL_DWD_RADAR, timeout=_TIMEOUT, headers=headers) as resp:
+                if resp.status == 304 and self._radar_bytes is not None:
+                    _LOGGER.debug("Radar: 304 Not Modified – Cache genutzt")
+                    content = self._radar_bytes
+                else:
+                    resp.raise_for_status()
+                    content = await resp.read()
+                    self._radar_bytes          = content
+                    self._radar_etag           = resp.headers.get("ETag")
+                    self._radar_last_modified = resp.headers.get("Last-Modified")
+                    _LOGGER.debug("Radar: neu geladen (%d KB)", len(content) // 1024)
 
-        # Verarbeitung im Thread-Pool
-        def _process() -> dict:
-            r = DWDRadar()
-            r.load_from_bytes(content)
-            forecast     = r.get_forecast_map(lat, lon)
-            current      = r.get_current_value(lat, lon)
-            next_precip  = r.get_next_precipitation(lat, lon)
-            return {
-                "aktuell":      current,
-                "forecast":      forecast,
-                "next_start":    next_precip.get("start"),
-                "next_end":      next_precip.get("end"),
-                "next_length":   next_precip.get("length"),
-                "next_max_mmh":  next_precip.get("max"),
-                "next_sum_mm":   next_precip.get("sum"),
-            }
+            def _process() -> dict:
+                r = DWDRadar()
+                r.load_from_bytes(content)
+                forecast     = r.get_forecast_map(lat, lon)
+                current      = r.get_current_value(lat, lon)
+                next_precip  = r.get_next_precipitation(lat, lon)
+                
+                # Dauer in Minuten umrechnen, falls vorhanden
+                length_min = None
+                if next_precip.get("length"):
+                    length_min = int(next_precip["length"].total_seconds() / 60)
 
-        return await self.hass.async_add_executor_job(_process)
+                return {
+                    "aktuell":      current,
+                    "forecast":      forecast,
+                    "next_start":    next_precip.get("start"),
+                    "next_end":      next_precip.get("end"),
+                    "next_length":   length_min, 
+                    "next_max_mmh":  next_precip.get("max"),
+                    "next_sum_mm":   next_precip.get("sum"),
+                }
+
+            return await self.hass.async_add_executor_job(_process)
+        except Exception:
+            return _empty
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
