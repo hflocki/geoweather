@@ -132,7 +132,7 @@ Alle verfügbaren Regionen findest du in der `regions.md` im Repository.
 
 ## Beispiel Dashboard Kacheln
 
-`dashboard.yaml.example'
+`dashboard.yaml.example`
 
 ---
 
