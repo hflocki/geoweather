@@ -16,7 +16,8 @@ CONF_UPDATE_INTERVAL = "update_interval"
 DEFAULT_SPEED_THRESHOLD = 5.0  # km/h  – above this = moving
 DEFAULT_MIN_SATELLITES = 4  # below this = bad GPS fix
 DEFAULT_MIN_STATIONARY_TIME = 10  # Minuten
-DEFAULT_UPDATE_INTERVAL = 0  # 0 bedeutet: nur manuell / via Service
+DEFAULT_UPDATE_INTERVAL = 0   # 0 = nur manuell via Service
+
 # ── Service name ─────────────────────────────────────────────────────────────
 SERVICE_UPDATE = "update"  # called as geoweather.update
 
@@ -37,9 +38,7 @@ URL_DWD_WARNINGS = (
 )
 URL_DWD_POLLEN = "https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json"
 
-URL_DWD_RADAR = (
-    "https://opendata.dwd.de/weather/radar/composite/rv/DE1200_RV_LATEST.tar.bz2"
-)
+URL_DWD_RADAR = "https://opendata.dwd.de/weather/radar/composite/rv/DE1200_RV_LATEST.tar.bz2"
 # ── DWD lookup tables ────────────────────────────────────────────────────────
 DWD_SEVERITY = {
     10: "Minor",
@@ -97,6 +96,8 @@ DWD_EVENT_TYPES = {
     95: "Hagel",
     96: "Schwerer Hagel",
 }
+
+
 
 # ── Pollen ───────────────────────────────────────────────────────────────────
 POLLEN_TYPES = [
