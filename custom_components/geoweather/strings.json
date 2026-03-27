@@ -44,4 +44,11 @@
       "description": "Manually trigger an update for all DWD APIs (Location, Warnings, Pollen, Radar)."
     }
   }
+  "entity": {
+    "binary_sensor": {
+      "moving": {
+        "name": "Moving"
+      }
+    }
+  }
 }
