@@ -50,16 +50,18 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict = {}
 
         if user_input is not None:
+            # 1. Numerische Validierung
             if float(user_input.get(CONF_SPEED_THRESHOLD, 0)) < 0:
                 errors[CONF_SPEED_THRESHOLD] = "invalid_speed"
             elif int(user_input.get(CONF_MIN_SATELLITES, 1)) < 1:
                 errors[CONF_MIN_SATELLITES] = "invalid_satellites"
             else:
-                # Sensoren auf Existenz prüfen
+                # 2. Sensoren auf Existenz im HA System prüfen
                 for key in (CONF_LAT_SENSOR, CONF_LON_SENSOR, CONF_SPEED_SENSOR):
                     entity_id = user_input.get(key)
                     if entity_id and self.hass.states.get(entity_id) is None:
                         errors[key] = "entity_not_found"
+                
                 if not errors:
                     return self.async_create_entry(
                         title="GeoWeather",
@@ -87,7 +89,7 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ): _number(0, 30, 1, "Minuten"),
                 vol.Optional(
                     CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
-                ): _number(0, 1440, 5, "Minuten (0=Aus)"),
+                ): _number(0, 1440, 5, "Minuten"),
             }
         )
 
@@ -103,13 +105,14 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
-    """Allow changing speed threshold / min satellites after setup."""
+    """Allow changing settings after setup."""
 
     def __init__(self, entry):
         self._entry = entry
 
     async def async_step_init(self, user_input=None):
         errors: dict = {}
+        # Daten aus Setup und Optionen zusammenführen
         merged = {**self._entry.data, **self._entry.options}
 
         if user_input is not None:
@@ -139,7 +142,7 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_UPDATE_INTERVAL,
                     default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
-                ): _number(0, 1440, 5, "Minuten (0=Aus)"),
+                ): _number(0, 1440, 5, "Minuten"),
             }
         )
 
