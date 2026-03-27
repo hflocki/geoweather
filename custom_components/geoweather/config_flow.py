@@ -10,14 +10,14 @@ from .const import (
     CONF_LON_SENSOR,
     CONF_MIN_SATELLITES,
     CONF_MIN_STATIONARY_TIME,
+    CONF_UPDATE_INTERVAL,
     CONF_SAT_SENSOR,
     CONF_SPEED_SENSOR,
     CONF_SPEED_THRESHOLD,
-    CONF_UPDATE_INTERVAL,
     DEFAULT_MIN_SATELLITES,
     DEFAULT_MIN_STATIONARY_TIME,
-    DEFAULT_SPEED_THRESHOLD,
     DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_SPEED_THRESHOLD,
     DOMAIN,
 )
 
@@ -55,10 +55,16 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             elif int(user_input.get(CONF_MIN_SATELLITES, 1)) < 1:
                 errors[CONF_MIN_SATELLITES] = "invalid_satellites"
             else:
-                return self.async_create_entry(
-                    title="GeoWeather",
-                    data=user_input,
-                )
+                # Sensoren auf Existenz prüfen
+                for key in (CONF_LAT_SENSOR, CONF_LON_SENSOR, CONF_SPEED_SENSOR):
+                    entity_id = user_input.get(key)
+                    if entity_id and self.hass.states.get(entity_id) is None:
+                        errors[key] = "entity_not_found"
+                if not errors:
+                    return self.async_create_entry(
+                        title="GeoWeather",
+                        data=user_input,
+                    )
 
         schema = vol.Schema(
             {
@@ -80,12 +86,10 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_MIN_STATIONARY_TIME, default=DEFAULT_MIN_STATIONARY_TIME
                 ): _number(0, 30, 1, "Minuten"),
                 vol.Optional(
-                CONF_UPDATE_INTERVAL,
-                default=merged.get(CONF_UPDATE_INTERVAL, 0),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(min=0, max=1440, step=5, mode="box", unit_of_measurement="min")
-            ),
-        })
+                    CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
+                ): _number(0, 1440, 5, "Minuten (0=Aus)"),
+            }
+        )
 
         return self.async_show_form(
             step_id="user",
@@ -99,7 +103,7 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
-    """Allow changing settings after setup."""
+    """Allow changing speed threshold / min satellites after setup."""
 
     def __init__(self, entry):
         self._entry = entry
