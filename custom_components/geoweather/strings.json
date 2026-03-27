@@ -2,47 +2,47 @@
   "config": {
     "step": {
       "user": {
-        "title": "GeoWeather Setup",
-        "description": "Wähle die GPS-Sensoren deines Geräts. Breitengrad, Längengrad und Geschwindigkeit sind erforderlich.",
+        "title": "Setup GeoWeather",
+        "description": "Select the GPS sensors of your device. Latitude, longitude, and speed are required. Altitude and satellites are optional but recommended.",
         "data": {
-          "lat_sensor": "Breitengrad-Sensor (Latitude)",
-          "lon_sensor": "Längengrad-Sensor (Longitude)",
-          "speed_sensor": "Geschwindigkeits-Sensor (km/h)",
-          "alt_sensor": "Höhen-Sensor (optional)",
-          "sat_sensor": "Satelliten-Sensor (optional)",
-          "speed_threshold": "Fahrt-Schwellenwert (km/h)",
-          "min_satellites": "Minimum an Satelliten für GPS-Fix",
-          "min_stationary_time": "Wartezeit im Stand vor Update (Minuten)",
+          "lat_sensor": "Latitude sensor",
+          "lon_sensor": "Longitude sensor",
+          "speed_sensor": "Speed sensor (km/h)",
+          "alt_sensor": "Altitude sensor (optional)",
+          "sat_sensor": "Satellites sensor (optional)",
+          "speed_threshold": "Speed threshold for 'moving' state (km/h)",
+          "min_satellites": "Minimum satellites for valid GPS fix",
+          "min_stationary_time": "Required stationary time before update (minutes)",
           "update_interval": "Automatisches Update-Intervall (Minuten, 0 = Aus)"
         }
       }
     },
     "error": {
-      "invalid_speed": "Der Schwellenwert muss ≥ 0 km/h sein.",
-      "invalid_satellites": "Mindestens 1 Satellit erforderlich."
+      "invalid_speed": "Speed threshold must be ≥ 0 km/h.",
+      "invalid_satellites": "At least 1 satellite required."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "GeoWeather – Optionen",
+        "title": "GeoWeather – Options",
         "data": {
-          "speed_threshold": "Fahrt-Schwellenwert (km/h)",
-          "min_satellites": "Minimum an Satelliten für GPS-Fix",
-          "min_stationary_time": "Wartezeit im Stand vor Update (Minuten)",
+          "speed_threshold": "Speed threshold for 'moving' state (km/h)",
+          "min_satellites": "Minimum satellites for valid GPS fix",
+          "min_stationary_time": "Required stationary time before update (minutes)",
           "update_interval": "Automatisches Update-Intervall (Minuten, 0 = Aus)"
         }
       }
     },
     "error": {
-      "invalid_speed": "Der Schwellenwert muss ≥ 0 km/h sein.",
-      "invalid_satellites": "Mindestens 1 Satellit erforderlich."
+      "invalid_speed": "Speed threshold must be ≥ 0 km/h.",
+      "invalid_satellites": "At least 1 satellite required."
     }
   },
   "services": {
     "update": {
-      "name": "Standort & Wetter aktualisieren",
-      "description": "Erzwingt einen sofortigen Abruf aller DWD-Daten."
+      "name": "Update Location & Weather",
+      "description": "Manually trigger an update for all DWD APIs (Location, Warnings, Pollen, Radar)."
     }
   }
 }
