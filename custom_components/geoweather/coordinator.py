@@ -17,25 +17,31 @@ from .dwdradar import DWDRadar
 _LOGGER = logging.getLogger(__name__)
 
 class GeoWeatherCoordinator(DataUpdateCoordinator):
+    """Zentrale für Standort, Warnungen, Pollen und Radar-Regendaten."""
+
     def __init__(self, hass: HomeAssistant, entry) -> None:
         interval_min = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
         update_interval = timedelta(minutes=interval_min) if interval_min > 0 else None
-        
-        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval)
-        self.entry = entry
-        self.last_skip_reason = None
-        self._pollen_mapping = {}
-        self._radar_etag = None
-        self._radar_last_modified = None
-        self._radar_bytes = None
 
-   async def async_load_pollen_mapping(self):
+        super().__init__(
+            hass, 
+            _LOGGER, 
+            name=DOMAIN, 
+            update_interval=update_interval
+        )
+        self.entry = entry
+        self.last_skip_reason: str | None = None
+        self._pollen_mapping: dict = {}
+        # self.stopped_at wurde hier wie gewünscht entfernt
+
+    async def async_load_pollen_mapping(self):
         """Lädt Pollen-Mapping ohne den Event-Loop zu blockieren."""
         path = self.hass.config.path("pollen_mapping.yaml")
         if not os.path.exists(path):
             path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml.example")
         
         def _load():
+            import yaml  # Verschoben hierher gegen die "Blocking Call" Warnung
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
