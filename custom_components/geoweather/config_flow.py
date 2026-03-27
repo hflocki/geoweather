@@ -13,9 +13,11 @@ from .const import (
     CONF_SAT_SENSOR,
     CONF_SPEED_SENSOR,
     CONF_SPEED_THRESHOLD,
+    CONF_UPDATE_INTERVAL,
     DEFAULT_MIN_SATELLITES,
     DEFAULT_MIN_STATIONARY_TIME,
     DEFAULT_SPEED_THRESHOLD,
+    DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
 
@@ -77,6 +79,9 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_MIN_STATIONARY_TIME, default=DEFAULT_MIN_STATIONARY_TIME
                 ): _number(0, 30, 1, "Minuten"),
+                vol.Optional(
+                    CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
+                ): _number(0, 1440, 5, "Minuten (0=Aus)"),
             }
         )
 
@@ -92,7 +97,7 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
-    """Allow changing speed threshold / min satellites after setup."""
+    """Allow changing settings after setup."""
 
     def __init__(self, entry):
         self._entry = entry
@@ -125,6 +130,10 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
                         CONF_MIN_STATIONARY_TIME, DEFAULT_MIN_STATIONARY_TIME
                     ),
                 ): _number(0, 30, 1, "Minuten"),
+                vol.Optional(
+                    CONF_UPDATE_INTERVAL,
+                    default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+                ): _number(0, 1440, 5, "Minuten (0=Aus)"),
             }
         )
 
