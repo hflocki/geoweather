@@ -40,34 +40,38 @@ from .dwdradar import DWDRadar, NotInAreaError
 
 _LOGGER = logging.getLogger(__name__)
 _TIMEOUT = aiohttp.ClientTimeout(total=30)
+
+# Pollen-Daten: DWD aktualisiert nur 1x täglich
 _POLLEN_CACHE_HOURS = 12
+
 
 class GeoWeatherCoordinator(DataUpdateCoordinator):
     """Zentrale für Standort, Warnungen, Pollen und Radar-Regendaten."""
 
     def __init__(self, hass: HomeAssistant, entry) -> None:
-        # Intervall aus Optionen laden (0 = Deaktiviert)
+        # Intervall aus Optionen laden (0 = Deaktiviert, sonst Minuten)
         interval_min = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
         update_interval = timedelta(minutes=interval_min) if interval_min > 0 else None
-        
+
         super().__init__(
             hass, 
             _LOGGER, 
             name=DOMAIN, 
             update_interval=update_interval
         )
+        
         self.entry = entry
         self.last_skip_reason: str | None = None
         self._pollen_mapping: dict = {}
         self.stopped_at: datetime | None = None
         
-        # Radar Cache
+        # Radar Cache / ETag Logik (Original erhalten)
         self._radar_etag: str | None = None
         self._radar_last_modified: str | None = None
         self._radar_bytes: bytes | None = None
 
     async def async_load_pollen_mapping(self):
-        """Lädt das Mapping für DWD-Pollenregionen."""
+        """Lädt das Mapping für DWD-Pollenregionen (Original erhalten)."""
         path = self.hass.config.path("pollen_mapping.yaml")
         if not os.path.exists(path):
             path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml.example")
@@ -77,18 +81,20 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 with open(path, "r", encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
             self._pollen_mapping = await self.hass.async_add_executor_job(_load)
+            _LOGGER.debug("Pollen-Mapping geladen: %d Einträge", len(self._pollen_mapping))
         except Exception as e:
             _LOGGER.error("Fehler beim Laden des Pollen-Mappings: %s", e)
             self._pollen_mapping = {}
 
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
-        """Manueller Refresh-Dienst."""
+        """Manueller Refresh-Dienst (Original erhalten)."""
         if self.data is None:
             await self.async_refresh()
             return
 
         if self._is_moving():
-            self.last_skip_reason = "Fahrt aktiv - Update blockiert"
+            self.last_skip_reason = "Fahrzeug bewegt sich - Update blockiert"
+            _LOGGER.debug(self.last_skip_reason)
             return
 
         # Standzeit-Check
@@ -100,22 +106,29 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         if limit > 0 and standing_min < limit:
             self.last_skip_reason = f"Standzeit zu kurz ({int(standing_min)}/{int(limit)} min)"
+            _LOGGER.debug(self.last_skip_reason)
             return
 
         self.last_skip_reason = None
         await self.async_refresh()
 
     async def _async_update_data(self) -> dict:
-        """Zentrale Methode zum Datenabruf."""
+        """Zentrale Methode zum Datenabruf (Original erhalten)."""
+        
+        # Sicherheits-Check: Während der Fahrt NIEMALS pollen
         if self._is_moving():
             self.stopped_at = None
-            _LOGGER.debug("Update übersprungen: Fahrzeug fährt")
+            self.last_skip_reason = "Fahrt aktiv"
+            _LOGGER.debug("_async_update_data: Fahrzeug fährt – übersprungen")
             return self.data or {}
 
+        # GPS-Fix Check
         if not self._has_valid_fix():
-            self.last_skip_reason = "Kein ausreichender GPS-Fix"
+            self.last_skip_reason = "Unzureichender GPS-Fix (Satelliten)"
+            _LOGGER.debug("_async_update_data: %s", self.last_skip_reason)
             return self.data or {}
 
+        # Wenn wir hier ankommen, stehen wir
         if self.stopped_at is None:
             self.stopped_at = datetime.now(timezone.utc)
 
@@ -123,7 +136,10 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         lon = self._float_state(self._cfg(CONF_LON_SENSOR))
 
         if lat is None or lon is None:
+            _LOGGER.warning("GPS-Koordinaten fehlen – Abruf abgebrochen")
             return self.data or {}
+
+        self.last_skip_reason = None
 
         try:
             async with aiohttp.ClientSession(timeout=_TIMEOUT) as session:
@@ -132,19 +148,27 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 pollen   = await self._fetch_pollen(session, location.get("kreis", ""))
                 regen    = await self._fetch_radar(session, lat, lon)
         except Exception as exc:
-            raise UpdateFailed(f"GeoWeather Update fehlgeschlagen: {exc}") from exc
+            _LOGGER.error("DWD-Abruf fehlgeschlagen: %s", exc)
+            raise UpdateFailed(f"DWD-Abruf fehlgeschlagen: {exc}") from exc
 
         return {
             "location": location,
             "warnings": warnings,
             "pollen": pollen,
             "regen": regen,
+            "gps": {
+                "latitude": lat,
+                "longitude": lon,
+                "altitude_m": self._float_state(self._cfg(CONF_ALT_SENSOR)),
+                "satellites": self._float_state(self._cfg(CONF_SAT_SENSOR)),
+            },
             "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
     # ── Fetch-Methoden ────────────────────────────────────────────────────────────
 
-    async def _fetch_location(self, session, lat, lon) -> dict:
+    async def _fetch_location(self, session: aiohttp.ClientSession, lat: float, lon: float) -> dict:
+        """Ermittelt Warncell-ID und Ortsnamen (Original erhalten)."""
         url = URL_DWD_WARNCELL.format(lat=lat, lon=lon)
         async with session.get(url) as resp:
             data = await resp.json(content_type=None)
@@ -160,7 +184,8 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             "warncellid": p.get("WARNCELLID")
         }
 
-    async def _fetch_warnings(self, session, lat, lon) -> dict:
+    async def _fetch_warnings(self, session: aiohttp.ClientSession, lat: float, lon: float) -> dict:
+        """Wetterwarnungen vom DWD (Inklusive FROST-Fix)."""
         url = URL_DWD_WARNINGS.format(
             south=lat-0.05, west=lon-0.05, north=lat+0.05, east=lon+0.05
         )
@@ -173,7 +198,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             raw_event = p.get("EVENT", "Unbekannt")
             raw_sev = p.get("SEVERITY", 0)
 
-            # FIX: „FROST“ Fehler abfangen (Prüfen ob String oder Zahl)
+            # NEU: Fix für "FROST" und andere Text-Events
             if isinstance(raw_event, str) and not raw_event.isdigit():
                 ereignis = raw_event.capitalize()
             else:
@@ -198,11 +223,14 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 "ende": p.get("EXPIRES"),
             })
         
+        # Nach Schweregrad sortieren
         items.sort(key=lambda x: x["schwere_level"], reverse=True)
         return {"anzahl": len(items), "warnungen": items}
 
-    async def _fetch_pollen(self, session, kreis) -> dict:
+    async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
+        """Pollenflug-Daten (Original erhalten)."""
         search_term = self._pollen_mapping.get(kreis, kreis)
+        
         async with session.get(URL_DWD_POLLEN) as resp:
             data = await resp.json(content_type=None)
         
@@ -215,6 +243,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 res["dwd_region"] = rname
                 res["dwd_teilregion"] = pname
                 res["region_id"] = entry.get("partregion_id")
+                
                 pdata = entry.get("pollen", {})
                 for p_type in POLLEN_TYPES:
                     val = pdata.get(p_type, {})
@@ -224,44 +253,52 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 break
         return res
 
-    async def _fetch_radar(self, session, lat, lon) -> dict:
+    async def _fetch_radar(self, session: aiohttp.ClientSession, lat: float, lon: float) -> dict:
+        """Niederschlagsradar mit ETag-Cache (Original erhalten + Minuten-Fix)."""
         _empty = {"aktuell": 0.0, "next_length": None}
+        
         try:
             headers = {}
-            if self._radar_etag: headers["If-None-Match"] = self._radar_etag
-            if self._radar_last_modified: headers["If-Modified-Since"] = self._radar_last_modified
+            if self._radar_etag:
+                headers["If-None-Match"] = self._radar_etag
+            if self._radar_last_modified:
+                headers["If-Modified-Since"] = self._radar_last_modified
 
             async with session.get(URL_DWD_RADAR, headers=headers) as resp:
                 if resp.status == 304:
                     content = self._radar_bytes
+                    _LOGGER.debug("Radar: Keine Änderung (304 Cache)")
                 elif resp.status == 200:
                     content = await resp.read()
                     self._radar_bytes = content
                     self._radar_etag = resp.headers.get("ETag")
                     self._radar_last_modified = resp.headers.get("Last-Modified")
+                    _LOGGER.debug("Radar: neu geladen (%d KB)", len(content) // 1024)
                 else:
                     return _empty
 
             def _process() -> dict:
                 r = DWDRadar()
                 r.load_from_bytes(content)
-                res = r.get_next_precipitation(lat, lon)
+                forecast     = r.get_forecast_map(lat, lon)
+                current      = r.get_current_value(lat, lon)
+                next_precip  = r.get_next_precipitation(lat, lon)
                 
-                # FIX: Timedelta sicher in Ganzzahl (Minuten) wandeln
-                l_min = None
-                if res.get("length_min") is not None:
-                    l_min = int(res["length_min"])
-                elif res.get("length"):
-                    l_min = int(res["length"].total_seconds() / 60)
+                # NEU: Fix für 'None Minuten' im Radar
+                length_min = None
+                if next_precip.get("length_min") is not None:
+                    length_min = int(next_precip["length_min"])
+                elif next_precip.get("length"):
+                    length_min = int(next_precip["length"].total_seconds() / 60)
 
                 return {
-                    "aktuell": r.get_current_value(lat, lon),
-                    "forecast": r.get_forecast_map(lat, lon),
-                    "next_start": res.get("start"),
-                    "next_end": res.get("end"),
-                    "next_length": l_min, 
-                    "next_max_mmh": res.get("max_mmh"),
-                    "next_sum_mm": res.get("sum_mm"),
+                    "aktuell":      current,
+                    "forecast":      forecast,
+                    "next_start":    next_precip.get("start"),
+                    "next_end":      next_precip.get("end"),
+                    "next_length":   length_min, 
+                    "next_max_mmh":  next_precip.get("max"),
+                    "next_sum_mm":   next_precip.get("sum"),
                 }
 
             return await self.hass.async_add_executor_job(_process)
@@ -269,7 +306,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Radar-Fehler: %s", e)
             return _empty
 
-    # ── Hilfsmethoden ─────────────────────────────────────────────────────────────
+    # ── Hilfsmethoden (Alle Original erhalten) ────────────────────────────────────
 
     def _cfg(self, key, default=None):
         return {**self.entry.data, **self.entry.options}.get(key, default)
@@ -289,11 +326,14 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         return speed > threshold if speed is not None else False
 
     def _has_valid_fix(self) -> bool:
+        """GPS-Fix Prüfung."""
         sats = self._float_state(self._cfg(CONF_SAT_SENSOR))
         limit = float(self._cfg(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES))
         return sats >= limit if sats is not None else True
 
 def _parse_pollen(val) -> str:
-    if val is None: return "0"
+    """DWD-Pollenwert sicher in String umwandeln (Original erhalten)."""
+    if val is None:
+        return "0"
     s = str(val).strip().lower()
     return "0" if s in ("-1", "null", "none", "") else s
