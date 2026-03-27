@@ -29,6 +29,8 @@
           "speed_threshold": "Speed threshold for 'moving' state (km/h)",
           "min_satellites": "Minimum satellites for valid GPS fix",
           "min_stationary_time": "Required stationary time before update (minutes)"
+          "update_interval": "Automatisches Update-Intervall (Minuten, 0 = Aus)"
+
         }
       }
     },
