@@ -166,10 +166,23 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
     def _cfg(self, key, default=None):
         return {**self.entry.data, **self.entry.options}.get(key, default)
     
-    def _float_state(self, eid):
-        s = self.hass.states.get(eid)
-        try: return float(s.state.replace(",",".")) if s else None
-        except: return None
+    def _float_state(self, entity_id: str | None) -> float | None:
+        """Sicherer Abruf eines Sensorwertes als Float (Fix für None-Werte)."""
+        # Falls kein Sensor konfiguriert ist (None) oder die ID leer ist
+        if not entity_id or not isinstance(entity_id, str):
+            return None
+            
+        state = self.hass.states.get(entity_id)
+        
+        # Falls der Sensor im System nicht existiert oder keinen Wert hat
+        if state is None or state.state in ("unknown", "unavailable", ""):
+            return None
+            
+        try:
+            # Umwandlung (Komma durch Punkt ersetzen für deutsche Sensor-Werte)
+            return float(state.state.replace(",", "."))
+        except (ValueError, TypeError):
+            return None
             
     def _is_moving(self):
         speed = self._float_state(self._cfg(CONF_SPEED_SENSOR))
