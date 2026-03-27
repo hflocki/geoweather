@@ -1,4 +1,4 @@
-"""Sensors for GeoWeather – Location, Warnings, Pollen, Rain."""
+"""Sensors for GeoWeather – Location, Warnings, Pollen, Rain, API-Interval."""
 from __future__ import annotations
 
 from homeassistant.components.sensor import (
@@ -11,28 +11,32 @@ from homeassistant.const import ATTR_ATTRIBUTION
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_UPDATE_INTERVAL
 from .coordinator import GeoWeatherCoordinator
 
 ATTRIBUTION = "Daten bereitgestellt vom Deutschen Wetterdienst (DWD)"
 
-
-async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
+    """Set up the sensor platform."""
     coordinator: GeoWeatherCoordinator = hass.data[DOMAIN][entry.entry_id]
+    
     async_add_entities([
         GeoWeatherLocationSensor(coordinator, entry),
         GeoWeatherWarnungsSensor(coordinator, entry),
         GeoWeatherPollenSensor(coordinator, entry),
         GeoWeatherRainSensor(coordinator, entry),
-        GeoWeatherIntervalSensor(coordinator, entry),
+        GeoWeatherIntervalSensor(coordinator, entry), # Der neue Sensor
     ])
 
+
 class _Base(CoordinatorEntity, SensorEntity):
+    """Base class for GeoWeather sensors."""
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._entry = entry
+        self._data = coordinator.data or {}
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -41,20 +45,14 @@ class _Base(CoordinatorEntity, SensorEntity):
             name="GeoWeather",
             manufacturer="DWD / hflocki",
             model="GeoWeather Integration",
-            entry_type="service",
         )
 
-    @property
-    def _data(self) -> dict:
-        return self.coordinator.data or {}
+    def _handle_coordinator_update(self) -> None:
+        """Update data when coordinator has new info."""
+        self._data = self.coordinator.data or {}
+        self.async_write_ha_state()
 
-    @property
-    def _gps(self) -> dict:
-        return self._data.get("gps", {})
-
-
-# ── Sensor 1: Standort ────────────────────────────────────────────────────────
-
+# --- Sensor 1: Standort ---
 class GeoWeatherLocationSensor(_Base):
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
@@ -63,87 +61,64 @@ class GeoWeatherLocationSensor(_Base):
         self._attr_icon = "mdi:map-marker-radius"
 
     @property
-    def native_value(self) -> str:
-        loc = self._data.get("location", {})
-        return loc.get("gemeinde") or loc.get("status", "Unbekannt")
+    def native_value(self):
+        return self._data.get("location", {}).get("gemeinde", "Warten...")
 
     @property
-    def extra_state_attributes(self) -> dict:
-        loc = self._data.get("location", {})
+    def extra_state_attributes(self):
+        l = self._data.get("location", {})
+        g = self._data.get("gps", {})
         return {
-            "kreis":          loc.get("kreis"),
-            "bundesland":     loc.get("bundesland"),
-            "warncellid":     loc.get("warncellid"),
-            "latitude":       self._gps.get("latitude"),
-            "longitude":      self._gps.get("longitude"),
-            "hoehe_m":        self._gps.get("altitude_m"),
-            "satelliten":     self._gps.get("satellites"),
-            "aktualisiert":   self._data.get("last_updated"),
+            "kreis": l.get("kreis"),
+            "bundesland": l.get("bundesland"),
+            "warncellid": l.get("warncellid"),
+            "latitude": g.get("latitude"),
+            "longitude": g.get("longitude"),
+            "hoehe_m": g.get("altitude_m"),
+            "satelliten": g.get("satellites"),
+            "aktualisiert": self._data.get("last_updated"),
             ATTR_ATTRIBUTION: ATTRIBUTION,
         }
 
-
-# ── Sensor 2: Warnungen ───────────────────────────────────────────────────────
-
+# --- Sensor 2: Warnungen ---
 class GeoWeatherWarnungsSensor(_Base):
-    # Integer-State → Automationen können direkt state > 0 prüfen
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_icon = "mdi:alert-rhombus"
-
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
         self._attr_name = "Warnungen"
         self._attr_unique_id = f"{entry.entry_id}_warnings"
+        self._attr_icon = "mdi:alert-outline"
 
     @property
-    def native_value(self) -> int:
-        return self._data.get("warnings", {}).get("anzahl", 0) or 0
+    def native_value(self):
+        return self._data.get("warnings", {}).get("anzahl", 0)
 
     @property
-    def extra_state_attributes(self) -> dict:
-        warn = self._data.get("warnings", {})
+    def extra_state_attributes(self):
         return {
-            "hoechste_schwere": warn.get("hoechste_schwere"),
-            "warnungen":        warn.get("warnungen", []),
-            "latitude":         self._gps.get("latitude"),
-            "longitude":        self._gps.get("longitude"),
-            "aktualisiert":     self._data.get("last_updated"),
-            ATTR_ATTRIBUTION:   ATTRIBUTION,
+            "warnungen": self._data.get("warnings", {}).get("warnungen", []),
+            "aktualisiert": self._data.get("last_updated"),
+            ATTR_ATTRIBUTION: ATTRIBUTION,
         }
 
-
-# ── Sensor 3: Pollenflug ──────────────────────────────────────────────────────
-
+# --- Sensor 3: Pollenflug ---
 class GeoWeatherPollenSensor(_Base):
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
         self._attr_name = "Pollenflug"
         self._attr_unique_id = f"{entry.entry_id}_pollen"
-        self._attr_icon = "mdi:flower-pollen"
+        self._attr_icon = "mdi:flower"
 
     @property
-    def native_value(self) -> str:
-        p = self._data.get("pollen", {})
-        if p.get("status") and p["status"] != "OK":
-            return p["status"]
-        # Höchsten Heute-Wert numerisch bestimmen (Strings wie "1-2" → 2)
-        def _to_num(v):
-            try:
-                s = str(v).strip()
-                return float(s.split("-")[-1]) if "-" in s else float(s)
-            except (ValueError, TypeError):
-                return 0.0
-        today_vals = [v for k, v in p.items() if k.endswith("_heute") and v not in (None, "0")]
-        return str(max(today_vals, key=_to_num)) if today_vals else "0"
+    def native_value(self):
+        return self._data.get("pollen", {}).get("dwd_region", "Nicht bereit")
 
     @property
-    def extra_state_attributes(self) -> dict:
+    def extra_state_attributes(self):
         p = self._data.get("pollen", {})
-        attrs: dict = {
-            "dwd_region":     p.get("dwd_region"),
+        attrs = {
             "dwd_teilregion": p.get("dwd_teilregion"),
-            "region_id":      p.get("region_id"),
-            "aktualisiert":   self._data.get("last_updated"),
+            "region_id": p.get("region_id"),
+            "aktualisiert": self._data.get("last_updated"),
             ATTR_ATTRIBUTION: ATTRIBUTION,
         }
         for key, val in p.items():
@@ -151,13 +126,11 @@ class GeoWeatherPollenSensor(_Base):
                 attrs[key] = val
         return attrs
 
-
-# ── Sensor 4: Regenvorhersage ──────────────────────────────────────────────────
-
+# --- Sensor 4: Regen ---
 class GeoWeatherRainSensor(_Base):
     _attr_native_unit_of_measurement = "mm/h"
     _attr_device_class = SensorDeviceClass.PRECIPITATION_INTENSITY
-    _attr_state_class  = SensorStateClass.MEASUREMENT
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
@@ -173,25 +146,27 @@ class GeoWeatherRainSensor(_Base):
     def extra_state_attributes(self) -> dict:
         r = self._data.get("regen", {})
         return {
-            "forecast":       r.get("forecast"),
-            "next_start":     r.get("next_start"),
-            "next_end":       r.get("next_end"),
-            "next_length_min":r.get("next_length"),
-            "next_max_mmh":   r.get("next_max_mmh"),
-            "next_sum_mm":    r.get("next_sum_mm"),
-            ATTR_ATTRIBUTION: ATTRIBUTION,
+            "forecast": r.get("forecast"),
+            "next_start": r.get("next_start"),
+            "next_end": r.get("next_end"),
+            "next_length": r.get("next_length"),
+            "next_max_mmh": r.get("next_max_mmh"),
+            "next_sum_mm": r.get("next_sum_mm"),
+            "aktualisiert": self._data.get("last_updated"),
         }
-class GeoWeatherIntervalSensor(CoordinatorEntity, SensorEntity):
+
+# --- Sensor 5: API-Intervall (NEU) ---
+class GeoWeatherIntervalSensor(_Base):
+    """Shows the currently set update interval."""
     _attr_name = "API Call Intervall"
     _attr_native_unit_of_measurement = "min"
     _attr_icon = "mdi:timer-sync"
 
     def __init__(self, coordinator, entry):
-        super().__init__(coordinator)
-        self._entry = entry
+        super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_interval"
 
     @property
     def native_value(self):
-        val = self._entry.options.get("update_interval", 0)
+        val = self._entry.options.get(CONF_UPDATE_INTERVAL, 0)
         return val if val > 0 else "Manuell"
