@@ -11,7 +11,7 @@ from homeassistant.const import ATTR_ATTRIBUTION
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
+from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
 from .coordinator import GeoWeatherCoordinator
 
 ATTRIBUTION = "Daten bereitgestellt vom Deutschen Wetterdienst (DWD)"
@@ -27,13 +27,18 @@ async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> Non
         GeoWeatherIntervalSensor(coordinator, entry),
     ])
 
-
 class _Base(CoordinatorEntity, SensorEntity):
+    """Base class for GeoWeather sensors."""
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._entry = entry
+        self._data = coordinator.data or {}
+
+    def _cfg(self, key, default=None):
+        """Hilfsfunktion für Konfigurationswerte."""
+        return {**self._entry.data, **self._entry.options}.get(key, default)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -65,13 +70,9 @@ class GeoWeatherLocationSensor(_Base):
 
     @property
     def native_value(self):
-        # Muss eine Zahl zurückgeben (0 statt "Manuell"), da Einheit 'min' gesetzt ist
-        val = self._cfg(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
-        try:
-            return int(val)
-        except (ValueError, TypeError):
-            return 0
+        return self.coordinator.data.get("location", {}).get("gemeinde", "Warten...")
             
+
     @property
     def extra_state_attributes(self) -> dict:
         loc = self._data.get("location", {})
@@ -188,7 +189,7 @@ class GeoWeatherRainSensor(_Base):
         }
 
 
-# ── Sensor 5: API-Intervall ────────────────────────────────────────────────────
+# ── Sensor 5: Interval ──────────────────────────────────────────────────
 
 class GeoWeatherIntervalSensor(_Base):
     """Zeigt das konfigurierte Auto-Poll-Intervall an."""
@@ -201,8 +202,13 @@ class GeoWeatherIntervalSensor(_Base):
         self._attr_unique_id = f"{entry.entry_id}_interval"
 
     @property
-    def _cfg(self, key, default=None):
-        return {**self._entry.data, **self._entry.options}.get(key, default)
+    def native_value(self):
+        """Gibt das Intervall als Zahl zurück (Pflicht bei Einheit 'min')."""
+        val = self._cfg(CONF_UPDATE_INTERVAL, 0)
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 0
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -211,6 +217,3 @@ class GeoWeatherIntervalSensor(_Base):
             "modus": "Automatisch" if val > 0 else "Manuell (nur Service/Button)",
             ATTR_ATTRIBUTION: ATTRIBUTION,
         }
-
-    def _cfg(self, key, default=None):
-        return {**self._entry.data, **self._entry.options}.get(key, default)
