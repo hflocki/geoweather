@@ -24,8 +24,8 @@ async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> Non
         GeoWeatherWarnungsSensor(coordinator, entry),
         GeoWeatherPollenSensor(coordinator, entry),
         GeoWeatherRainSensor(coordinator, entry),
+        GeoWeatherIntervalSensor(coordinator, entry),
     ])
-
 
 class _Base(CoordinatorEntity, SensorEntity):
     _attr_has_entity_name = True
@@ -181,3 +181,17 @@ class GeoWeatherRainSensor(_Base):
             "next_sum_mm":    r.get("next_sum_mm"),
             ATTR_ATTRIBUTION: ATTRIBUTION,
         }
+class GeoWeatherIntervalSensor(CoordinatorEntity, SensorEntity):
+    _attr_name = "API Call Intervall"
+    _attr_native_unit_of_measurement = "min"
+    _attr_icon = "mdi:timer-sync"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_interval"
+
+    @property
+    def native_value(self):
+        val = self._entry.options.get("update_interval", 0)
+        return val if val > 0 else "Manuell"
