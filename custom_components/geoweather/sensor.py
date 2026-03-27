@@ -34,7 +34,7 @@ class _Base(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._entry = entry
-        self._data = coordinator.data or {}
+        #self._data = coordinator.data or {}
 
     def _cfg(self, key, default=None):
         """Hilfsfunktion für Konfigurationswerte."""
