@@ -23,7 +23,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval)
         self.entry = entry
-        self.stopped_at = None
         self.last_skip_reason = None
         self._pollen_mapping = {}
         self._radar_etag = None
@@ -160,7 +159,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         p = data["features"][0]["properties"]
         return {"gemeinde": p.get("NAME"), "kreis": p.get("KREIS"), "warncellid": p.get("WARNCELLID")}
 
-    async def async_service_update(self, call=None):
+    async def async_service_update(self, call: ServiceCall | None = None) -> None:
         if not self._is_moving(): await self.async_refresh()
 
     def _cfg(self, key, default=None):
