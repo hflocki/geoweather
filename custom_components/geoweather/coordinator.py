@@ -46,11 +46,9 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict:
         if self._is_moving():
-            self.stopped_at = None
             return self.data or {}
         
         if not self._has_valid_fix(): return self.data or {}
-        if self.stopped_at is None: self.stopped_at = datetime.now(timezone.utc)
 
         lat = self._float_state(self._cfg(CONF_LAT_SENSOR))
         lon = self._float_state(self._cfg(CONF_LON_SENSOR))
