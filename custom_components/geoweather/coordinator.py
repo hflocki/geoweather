@@ -31,19 +31,19 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._radar_bytes = None
 
    async def async_load_pollen_mapping(self):
-    path = self.hass.config.path("pollen_mapping.yaml")
-    if not os.path.exists(path):
-        path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml.example")
+        """Lädt Pollen-Mapping ohne den Event-Loop zu blockieren."""
+        path = self.hass.config.path("pollen_mapping.yaml")
+        if not os.path.exists(path):
+            path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml.example")
+        
+        def _load():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return yaml.safe_load(f) or {}
+            except Exception:
+                return {}
 
-    def _load():
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-        except Exception:
-            return {}
-
-    self._pollen_mapping = await self.hass.async_add_executor_job(_load)
-        _LOGGER.debug("Pollen-Mapping geladen: %d Einträge", len(self._pollen_mapping))
+        self._pollen_mapping = await self.hass.async_add_executor_job(_load)
 
     async def _async_update_data(self) -> dict:
         if self._is_moving():
