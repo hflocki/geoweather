@@ -20,6 +20,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
     """Zentrale für Standort, Warnungen, Pollen und Radar-Regendaten."""
 
     def __init__(self, hass: HomeAssistant, entry) -> None:
+        """Initialize the coordinator."""
         interval_min = entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
         update_interval = timedelta(minutes=interval_min) if interval_min > 0 else None
 
@@ -32,7 +33,9 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self.entry = entry
         self.last_skip_reason: str | None = None
         self._pollen_mapping: dict = {}
-        # self.stopped_at wurde hier wie gewünscht entfernt
+        self._radar_etag: str | None = None
+        self._radar_last_modified: str | None = None
+        self._radar_bytes: bytes | None = None
 
     async def async_load_pollen_mapping(self):
         """Lädt Pollen-Mapping ohne den Event-Loop zu blockieren."""
