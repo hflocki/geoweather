@@ -11,7 +11,7 @@ from homeassistant.const import ATTR_ATTRIBUTION
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .const import DOMAIN, CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
 from .coordinator import GeoWeatherCoordinator
 
 ATTRIBUTION = "Daten bereitgestellt vom Deutschen Wetterdienst (DWD)"
@@ -64,10 +64,14 @@ class GeoWeatherLocationSensor(_Base):
         self._attr_icon = "mdi:map-marker-radius"
 
     @property
-    def native_value(self) -> str:
-        loc = self._data.get("location", {})
-        return loc.get("gemeinde") or loc.get("status", "Unbekannt")
-
+    def native_value(self):
+        # Muss eine Zahl zurückgeben (0 statt "Manuell"), da Einheit 'min' gesetzt ist
+        val = self._cfg(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 0
+            
     @property
     def extra_state_attributes(self) -> dict:
         loc = self._data.get("location", {})
