@@ -31,19 +31,18 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._radar_bytes = None
 
     async def async_load_pollen_mapping(self):
-        """Lädt Pollen-Mapping ohne den Event-Loop zu blockieren."""
-        path = self.hass.config.path("pollen_mapping.yaml")
-        if not os.path.exists(path):
-            path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml.example")
-        
-        def _load():
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    return yaml.safe_load(f) or {}
-            except Exception:
-                return {}
+    path = self.hass.config.path("pollen_mapping.yaml")
+    if not os.path.exists(path):
+        path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml.example")
 
-        self._pollen_mapping = await self.hass.async_add_executor_job(_load)
+    def _load():
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
+        except Exception:
+            return {}
+
+    self._pollen_mapping = await self.hass.async_add_executor_job(_load)
         _LOGGER.debug("Pollen-Mapping geladen: %d Einträge", len(self._pollen_mapping))
 
     async def _async_update_data(self) -> dict:
@@ -132,14 +131,18 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
     async def async_service_update(self, call=None):
         if not self._is_moving(): await self.async_refresh()
 
-    def _cfg(self, k): return {**self.entry.data, **self.entry.options}.get(k)
+    def _cfg(self, key, default=None):
+    return {**self.entry.data, **self.entry.options}.get(key, default)
+    
     def _float_state(self, eid):
         s = self.hass.states.get(eid)
         try: return float(s.state.replace(",",".")) if s else None
         except: return None
+            
     def _is_moving(self):
         speed = self._float_state(self._cfg(CONF_SPEED_SENSOR))
         return speed > float(self._cfg(CONF_SPEED_THRESHOLD, 5.0)) if speed is not None else False
+        
     def _has_valid_fix(self):
         sats = self._float_state(self._cfg(CONF_SAT_SENSOR))
         return sats >= float(self._cfg(CONF_MIN_SATELLITES, 4)) if sats is not None else True
