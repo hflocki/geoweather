@@ -201,13 +201,8 @@ class GeoWeatherIntervalSensor(_Base):
         self._attr_unique_id = f"{entry.entry_id}_interval"
 
     @property
-    def native_value(self):
-        # FIX: Muss eine Zahl (int/float) zurückgeben, da Einheit 'min' gesetzt ist
-        val = self._cfg(CONF_UPDATE_INTERVAL, 0)
-        try:
-            return int(val)
-        except (ValueError, TypeError):
-            return 0
+    def _cfg(self, key, default=None):
+        return {**self._entry.data, **self._entry.options}.get(key, default)
 
     @property
     def extra_state_attributes(self) -> dict:
