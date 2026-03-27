@@ -1,76 +1,71 @@
-"""Binary sensor for GeoWeather - Moving status."""
+"""Binary sensor: Is the vehicle currently moving?"""
 from __future__ import annotations
-
+from datetime import datetime, timezone
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
-
 from .const import DOMAIN, CONF_SPEED_SENSOR, CONF_SPEED_THRESHOLD
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up the binary sensor platform."""
-    # Wir brauchen den Coordinator hier eigentlich nicht für den Status, 
-    # da wir direkt auf den Speed-Sensor hören.
-    async_add_entities([GeoWeatherMovingBinarySensor(entry)])
-
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([GeoWeatherMovingBinarySensor(coordinator, entry)])
 
 class GeoWeatherMovingBinarySensor(BinarySensorEntity):
-    """Binary sensor that responds immediately to speed changes."""
-
     _attr_device_class = BinarySensorDeviceClass.MOVING
-    _attr_should_poll = False  # Wir nutzen Events für Echtzeit-Reaktion
+    _attr_should_poll = False  # Echtzeit-Reaktion via Event
     _attr_has_entity_name = True
     _attr_name = "Moving"
 
-    def __init__(self, entry: ConfigEntry) -> None:
-        """Initialize the sensor."""
+    def __init__(self, coordinator, entry) -> None:
+        self._coordinator = coordinator
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_moving"
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to speed sensor changes when added to hass."""
+        """Abonniere den Speed-Sensor für sofortige Updates."""
         speed_id = self._entry.options.get(CONF_SPEED_SENSOR) or self._entry.data.get(CONF_SPEED_SENSOR)
-        
         if speed_id:
-            # Jedes Mal, wenn der Tacho-Sensor einen neuen Wert sendet, 
-            # triggern wir diesen Sensor hier an.
             self.async_on_remove(
                 async_track_state_change_event(self.hass, [speed_id], self._update_callback)
             )
 
     async def _update_callback(self, event) -> None:
-        """Update the state immediately."""
+        """Wird bei jeder Änderung am Tacho gerufen."""
         self.async_write_ha_state()
 
     @property
     def is_on(self) -> bool:
-        """Return true if the vehicle is moving."""
+        """Prüft den Status direkt am Sensor-Zustand."""
         speed_id = self._entry.options.get(CONF_SPEED_SENSOR) or self._entry.data.get(CONF_SPEED_SENSOR)
-        if not speed_id:
-            return False
-
         state = self.hass.states.get(speed_id)
         if state and state.state not in ("unknown", "unavailable"):
             try:
-                # Schwellenwert aus Optionen (Standard 5.0)
                 threshold = float(self._entry.options.get(CONF_SPEED_THRESHOLD, 5.0))
-                # Aktuelle Geschwindigkeit vom Tacho
-                current_speed = float(state.state.replace(",", "."))
-                return current_speed > threshold
+                return float(state.state.replace(",", ".")) > threshold
             except (ValueError, TypeError):
                 return False
         return False
 
     @property
+    def extra_state_attributes(self) -> dict:
+        """Alle deine ursprünglichen Attribute (Standzeit etc.)."""
+        speed_id = self._entry.options.get(CONF_SPEED_SENSOR) or self._entry.data.get(CONF_SPEED_SENSOR)
+        speed_state = self.hass.states.get(speed_id)
+        
+        standzeit_min = None
+        if self._coordinator.stopped_at and not self.is_on:
+            standzeit_min = round((datetime.now(timezone.utc) - self._coordinator.stopped_at).total_seconds() / 60, 1)
+
+        return {
+            "geschwindigkeit_kmh": speed_state.state if speed_state else 0,
+            "standzeit_min": standzeit_min,
+            "letzter_skip_grund": getattr(self._coordinator, "last_skip_reason", None)
+        }
+
+    @property
     def device_info(self):
-        """Return device information."""
         return {"identifiers": {(DOMAIN, self._entry.entry_id)}}
