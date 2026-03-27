@@ -31,7 +31,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._radar_bytes = None
 
     async def async_load_pollen_mapping(self):
-        """Lädt das Mapping für DWD-Pollenregionen ohne das System zu blockieren."""
+        """Lädt Pollen-Mapping ohne den Event-Loop zu blockieren."""
         path = self.hass.config.path("pollen_mapping.yaml")
         if not os.path.exists(path):
             path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml.example")
@@ -40,8 +40,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
-            except Exception as e:
-                _LOGGER.error("Fehler beim Lesen der Pollen-Datei: %s", e)
+            except Exception:
                 return {}
 
         self._pollen_mapping = await self.hass.async_add_executor_job(_load)
