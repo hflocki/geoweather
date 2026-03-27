@@ -97,8 +97,6 @@ DWD_EVENT_TYPES = {
     96: "Schwerer Hagel",
 }
 
-
-
 # ── Pollen ───────────────────────────────────────────────────────────────────
 POLLEN_TYPES = [
     "Birke",
