@@ -12,7 +12,6 @@
           "sat_sensor": "Satelliten-Sensor (satellites) – optional",
           "speed_threshold": "Ab dieser Geschwindigkeit gilt das Fahrzeug als fahrend (km/h)",
           "min_satellites": "Mindestanzahl Satelliten für einen gültigen GPS-Fix",
-          "min_stationary_time": "Erforderliche Standzeit vor Update (Minuten)"
         }
       }
     },
@@ -28,7 +27,6 @@
         "data": {
           "speed_threshold": "Ab dieser Geschwindigkeit gilt das Fahrzeug als fahrend (km/h)",
           "min_satellites": "Mindestanzahl Satelliten für einen gültigen GPS-Fix",
-          "min_stationary_time": "Erforderliche Standzeit vor Update (Minuten)"
         }
       }
     },
