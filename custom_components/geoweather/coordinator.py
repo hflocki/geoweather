@@ -30,7 +30,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._radar_last_modified = None
         self._radar_bytes = None
 
-    async def async_load_pollen_mapping(self):
+   async def async_load_pollen_mapping(self):
     path = self.hass.config.path("pollen_mapping.yaml")
     if not os.path.exists(path):
         path = os.path.join(os.path.dirname(__file__), "pollen_mapping.yaml.example")
