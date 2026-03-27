@@ -187,25 +187,30 @@ class GeoWeatherRainSensor(_Base):
 # ── Sensor 5: API-Intervall ────────────────────────────────────────────────────
 
 class GeoWeatherIntervalSensor(_Base):
-    """Zeigt das konfigurierte Auto-Poll-Intervall an (0 = nur manuell)."""
+    """Zeigt das konfigurierte Auto-Poll-Intervall an."""
     _attr_native_unit_of_measurement = "min"
     _attr_icon = "mdi:timer-sync"
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
-        self._attr_name = "API Intervall"
+        self._attr_name = "API Call Intervall"
         self._attr_unique_id = f"{entry.entry_id}_interval"
 
     @property
     def native_value(self):
-        val = self._cfg(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
-        return int(val) if val and int(val) > 0 else 0
+        # FIX: Muss eine Zahl (int/float) zurückgeben, da Einheit 'min' gesetzt ist
+        val = self._cfg(CONF_UPDATE_INTERVAL, 0)
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 0
 
     @property
     def extra_state_attributes(self) -> dict:
         val = self.native_value
         return {
-            "modus": "Automatisch" if val > 0 else "Nur manuell (via geoweather.update)",
+            "modus": "Automatisch" if val > 0 else "Manuell (nur Service/Button)",
+            ATTR_ATTRIBUTION: ATTRIBUTION,
         }
 
     def _cfg(self, key, default=None):
