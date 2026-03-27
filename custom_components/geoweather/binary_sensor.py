@@ -92,12 +92,6 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
         threshold = float(self._cfg(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD))
         min_sats = float(self._cfg(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES))
 
-        stopped_at = getattr(self._coordinator, "stopped_at", None)
-        standzeit_min = None
-        if stopped_at is not None and not self.is_on:
-            standzeit_min = round(
-                (datetime.now(timezone.utc) - stopped_at).total_seconds() / 60, 1
-            )
 
         return {
             "geschwindigkeit_kmh":  speed,
@@ -106,7 +100,6 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
             "satelliten":           satellites,
             "min_satelliten":       min_sats,
             "gps_fix_ok":           (satellites >= min_sats) if satellites is not None else None,
-            "standzeit_minuten":    standzeit_min,
             "letzter_skip_grund":   getattr(self._coordinator, "last_skip_reason", None),
         }
 
