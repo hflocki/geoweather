@@ -132,7 +132,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         if not self._is_moving(): await self.async_refresh()
 
     def _cfg(self, key, default=None):
-    return {**self.entry.data, **self.entry.options}.get(key, default)
+        return {**self.entry.data, **self.entry.options}.get(key, default)
     
     def _float_state(self, eid):
         s = self.hass.states.get(eid)
