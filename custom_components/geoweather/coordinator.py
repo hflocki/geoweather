@@ -54,15 +54,22 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._pollen_mapping = await self.hass.async_add_executor_job(_load)
 
     async def _async_update_data(self) -> dict:
+        """Zentrale Update-Logik ohne Standzeit-Sperre."""
         if self._is_moving():
+            self.last_skip_reason = "Fahrt aktiv - Update pausiert"
             return self.data or {}
-        
-        if not self._has_valid_fix(): return self.data or {}
 
+        if not self._has_valid_fix():
+            self.last_skip_reason = "Kein GPS-Fix"
+            return self.data or {}
+
+        # Hier holen wir die Koordinaten direkt von den Sensoren
         lat = self._float_state(self._cfg(CONF_LAT_SENSOR))
         lon = self._float_state(self._cfg(CONF_LON_SENSOR))
-        if lat is None or lon is None: return self.data or {}
-
+        
+        if lat is None or lon is None:
+            self.last_skip_reason = "Koordinaten fehlen (Sensoren prüfen)"
+            return self.data or {}
         try:
             async with aiohttp.ClientSession() as session:
                 location = await self._fetch_location(session, lat, lon)
@@ -190,9 +197,12 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         except (ValueError, TypeError):
             return None
             
-    def _is_moving(self):
+    def _is_moving(self) -> bool:
+        """Prüft, ob das Fahrzeug fährt."""
         speed = self._float_state(self._cfg(CONF_SPEED_SENSOR))
-        return speed > float(self._cfg(CONF_SPEED_THRESHOLD, 5.0)) if speed is not None else False
+        threshold = float(self._cfg(CONF_SPEED_THRESHOLD, 5.0))
+        # Wenn speed None ist (Sensor fehlt), gehen wir davon aus, dass wir stehen (False)
+        return speed > threshold if speed is not None else False
         
     def _has_valid_fix(self):
         sats = self._float_state(self._cfg(CONF_SAT_SENSOR))
