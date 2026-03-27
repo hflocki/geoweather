@@ -27,7 +27,7 @@
         "title": "GeoWeather – Options",
         "data": {
           "speed_threshold": "Speed threshold for 'moving' state (km/h)",
-          "min_satellites": "Minimum satellites for valid GPS fix",
+          "min_satellites": "Minimum satellites for valid GPS fix"
         }
       }
     },
