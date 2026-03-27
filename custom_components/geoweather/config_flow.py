@@ -80,10 +80,12 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_MIN_STATIONARY_TIME, default=DEFAULT_MIN_STATIONARY_TIME
                 ): _number(0, 30, 1, "Minuten"),
                 vol.Optional(
-                    CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
-                ): _number(0, 1440, 5, "Minuten (0=Aus)"),
-            }
-        )
+                CONF_UPDATE_INTERVAL,
+                default=merged.get(CONF_UPDATE_INTERVAL, 0),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=1440, step=5, mode="box", unit_of_measurement="min")
+            ),
+        })
 
         return self.async_show_form(
             step_id="user",
