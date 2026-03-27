@@ -27,7 +27,7 @@
         "title": "GeoWeather – Optionen",
         "data": {
           "speed_threshold": "Ab dieser Geschwindigkeit gilt das Fahrzeug als fahrend (km/h)",
-          "min_satellites": "Mindestanzahl Satelliten für einen gültigen GPS-Fix",
+          "min_satellites": "Mindestanzahl Satelliten für einen gültigen GPS-Fix"
         }
       }
     },
