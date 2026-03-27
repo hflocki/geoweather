@@ -10,12 +10,10 @@ CONF_ALT_SENSOR = "alt_sensor"  # optional
 CONF_SAT_SENSOR = "sat_sensor"  # optional
 CONF_SPEED_THRESHOLD = "speed_threshold"
 CONF_MIN_SATELLITES = "min_satellites"
-CONF_MIN_STATIONARY_TIME = "min_stationary_time"
 CONF_UPDATE_INTERVAL = "update_interval"
 # ── Defaults ─────────────────────────────────────────────────────────────────
 DEFAULT_SPEED_THRESHOLD = 5.0  # km/h  – above this = moving
 DEFAULT_MIN_SATELLITES = 4  # below this = bad GPS fix
-DEFAULT_MIN_STATIONARY_TIME = 10  # Minuten
 DEFAULT_UPDATE_INTERVAL = 0   # 0 = nur manuell via Service
 
 # ── Service name ─────────────────────────────────────────────────────────────
