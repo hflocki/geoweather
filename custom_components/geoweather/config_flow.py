@@ -85,9 +85,6 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_MIN_SATELLITES, default=DEFAULT_MIN_SATELLITES
                 ): _number(1, 20, 1, "Satelliten"),
                 vol.Optional(
-                    CONF_MIN_STATIONARY_TIME, default=DEFAULT_MIN_STATIONARY_TIME
-                ): _number(0, 30, 1, "Minuten"),
-                vol.Optional(
                     CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
                 ): _number(0, 1440, 5, "Minuten"),
             }
@@ -133,12 +130,6 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
                     CONF_MIN_SATELLITES,
                     default=merged.get(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES),
                 ): _number(1, 20, 1, "Satelliten"),
-                vol.Optional(
-                    CONF_MIN_STATIONARY_TIME,
-                    default=merged.get(
-                        CONF_MIN_STATIONARY_TIME, DEFAULT_MIN_STATIONARY_TIME
-                    ),
-                ): _number(0, 30, 1, "Minuten"),
                 vol.Optional(
                     CONF_UPDATE_INTERVAL,
                     default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
