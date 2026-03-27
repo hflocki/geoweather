@@ -25,7 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         GeoWeatherWarnungsSensor(coordinator, entry),
         GeoWeatherPollenSensor(coordinator, entry),
         GeoWeatherRainSensor(coordinator, entry),
-        GeoWeatherIntervalSensor(coordinator, entry), # Der neue Sensor
+        GeoWeatherIntervalSensor(coordinator, entry),   
     ])
 
 
@@ -157,14 +157,9 @@ class GeoWeatherRainSensor(_Base):
 
 # --- Sensor 5: API-Intervall (NEU) ---
 class GeoWeatherIntervalSensor(_Base):
-    """Shows the currently set update interval."""
     _attr_name = "API Call Intervall"
     _attr_native_unit_of_measurement = "min"
     _attr_icon = "mdi:timer-sync"
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_interval"
 
     @property
     def native_value(self):
