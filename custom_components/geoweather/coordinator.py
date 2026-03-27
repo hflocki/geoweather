@@ -72,21 +72,53 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
-    async def _fetch_warnings(self, session, lat, lon) -> dict:
-        url = URL_DWD_WARNINGS.format(south=lat-0.05, west=lon-0.05, north=lat+0.05, east=lon+0.05)
+    async def _fetch_warnings(self, session: aiohttp.ClientSession, lat: float, lon: float) -> dict:
+        """Wetterwarnungen vom DWD (Inklusive Fix für 'Minor', 'Moderate' etc.)."""
+        url = URL_DWD_WARNINGS.format(
+            south=lat-0.05, west=lon-0.05, north=lat+0.05, east=lon+0.05
+        )
         async with session.get(url) as resp:
             data = await resp.json(content_type=None)
+
         items = []
+        # Mapping für Text-basierte Schweregrade
+        sev_map = {"Minor": 1, "Moderate": 2, "Severe": 3, "Extreme": 4}
+
         for feat in data.get("features", []):
             p = feat.get("properties", {})
+            
+            # Ereignis-Typ (z.B. FROST oder Code 51)
             raw_event = p.get("EVENT", "Unbekannt")
-            # FIX: FROST (Text) statt Code abfangen
-            ereignis = raw_event.capitalize() if isinstance(raw_event, str) and not raw_event.isdigit() else DWD_EVENT_TYPES.get(int(raw_event), f"Code {raw_event}")
+            if isinstance(raw_event, str) and not raw_event.isdigit():
+                ereignis = raw_event.capitalize()
+            else:
+                try:
+                    ereignis = DWD_EVENT_TYPES.get(int(raw_event), f"Code {raw_event}")
+                except (ValueError, TypeError):
+                    ereignis = str(raw_event)
+
+            # Schweregrad-Handling (FIX für 'Minor', 'Moderate' etc.)
+            raw_sev = p.get("SEVERITY", 0)
+            if isinstance(raw_sev, str) and not raw_sev.isdigit():
+                sev_level = sev_map.get(raw_sev, 0)
+            else:
+                try:
+                    sev_level = int(raw_sev)
+                except (ValueError, TypeError):
+                    sev_level = 0
+
             items.append({
-                "ereignis": ereignis, "schwere": DWD_SEVERITY.get(int(p.get("SEVERITY", 0)), "Gering"),
-                "schwere_level": int(p.get("SEVERITY", 0)), "headline": p.get("HEADLINE", ""),
-                "beschreibung": p.get("DESCRIPTION", ""), "beginn": p.get("ONSET"), "ende": p.get("EXPIRES")
+                "ereignis": ereignis,
+                "schwere": DWD_SEVERITY.get(sev_level, "Unbekannt"),
+                "schwere_level": sev_level,
+                "headline": p.get("HEADLINE", ""),
+                "beschreibung": p.get("DESCRIPTION", ""),
+                "beginn": p.get("ONSET"),
+                "ende": p.get("EXPIRES"),
             })
+        
+        # Nach Schweregrad sortieren (Extrem zuerst)
+        items.sort(key=lambda x: x["schwere_level"], reverse=True)
         return {"anzahl": len(items), "warnungen": items}
 
     async def _fetch_radar(self, session, lat, lon) -> dict:
