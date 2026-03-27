@@ -22,20 +22,24 @@ DEFAULT_UPDATE_INTERVAL = 0   # 0 = nur manuell via Service
 SERVICE_UPDATE = "update"  # called as geoweather.update
 
 # ── DWD API endpoints ────────────────────────────────────────────────────────
+# Diese URL braucht nur lat und lon (viewparams)
 URL_DWD_WARNCELL = (
     "https://maps.dwd.de/geoserver/dwd/ows"
     "?service=WFS&version=2.0.0&request=GetFeature"
     "&typeNames=dwd:Warngebiete_Gemeinden"
     "&outputFormat=application/json"
-    "&bbox={south},{west},{north},{east},urn:ogc:def:crs:EPSG::4326"
+    "&viewparams=LAT:{lat};LON:{lon}"
 )
+
+# Diese URL braucht south, west, north, east (bbox)
 URL_DWD_WARNINGS = (
     "https://maps.dwd.de/geoserver/dwd/ows"
     "?service=WFS&version=2.0.0&request=GetFeature"
-    "&typeNames=dwd:Warnungen_Gemeinden_vereinigt"
+    "&typeNames=dwd:Warnungen_Gemeinden"
     "&outputFormat=application/json"
     "&bbox={south},{west},{north},{east},urn:ogc:def:crs:EPSG::4326"
 )
+
 URL_DWD_POLLEN = "https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json"
 
 URL_DWD_RADAR = "https://opendata.dwd.de/weather/radar/composite/rv/DE1200_RV_LATEST.tar.bz2"
