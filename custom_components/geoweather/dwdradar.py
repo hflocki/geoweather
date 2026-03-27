@@ -11,8 +11,6 @@ import tarfile
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 
-import numpy as np
-
 _LOGGER = logging.getLogger(__name__)
 
 RADAR_XSIZE = 1100
@@ -42,6 +40,7 @@ class DWDRadar:
         self._radars: dict[datetime, np.ndarray] | None = None
 
     def load_from_bytes(self, content: bytes) -> None:
+        import numpy as np
         """Lädt Radar-Daten aus einem bereits heruntergeladenen tar.bz2-Archiv."""
         radars: dict[datetime, np.ndarray] = {}
         with tarfile.open(fileobj=BytesIO(content)) as tar:

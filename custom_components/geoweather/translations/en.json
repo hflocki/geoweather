@@ -12,7 +12,6 @@
           "sat_sensor": "Satellites sensor (optional)",
           "speed_threshold": "Speed threshold for 'moving' state (km/h)",
           "min_satellites": "Minimum satellites for valid GPS fix",
-          "min_stationary_time": "Required stationary time before update (minutes)"
         }
       }
     },
@@ -28,7 +27,6 @@
         "data": {
           "speed_threshold": "Speed threshold for 'moving' state (km/h)",
           "min_satellites": "Minimum satellites for valid GPS fix",
-          "min_stationary_time": "Required stationary time before update (minutes)"
         }
       }
     },
