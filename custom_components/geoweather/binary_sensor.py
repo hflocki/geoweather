@@ -1,4 +1,4 @@
-"""Binary sensor: Is the vehicle currently moving?"""
+"""Binary sensor for GeoWeather - Moving status."""
 from __future__ import annotations
 
 import logging
@@ -43,7 +43,7 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.MOVING
     _attr_should_poll = False   # Echtzeit via State-Change-Event
     _attr_has_entity_name = True
-    _attr_name = "Moving"
+    _attr_name = "Moving"  # Hier wieder auf Moving gestellt
 
     def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
         self._coordinator = coordinator
@@ -66,7 +66,7 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        """Prüft den Status direkt am Sensor-Zustand für sofortige Reaktion."""
+        """Prüft den Status direkt am Sensor-Zustand."""
         speed_id = self._cfg(CONF_SPEED_SENSOR)
         if not speed_id:
             return False
@@ -85,7 +85,7 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Behält alle ursprünglichen Attribute bei."""
+        """Attribute für Tacho, Höhe und Standzeit."""
         speed = self._float(self._cfg(CONF_SPEED_SENSOR))
         altitude = self._float(self._cfg(CONF_ALT_SENSOR))
         satellites = self._float(self._cfg(CONF_SAT_SENSOR))
@@ -110,8 +110,9 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
             "letzter_skip_grund":   getattr(self._coordinator, "last_skip_reason", None),
         }
 
-    def _cfg(self, key):
-        return {**self._entry.data, **self._entry.options}.get(key)
+    # FIX: _cfg muss den Standardwert als Argument akzeptieren
+    def _cfg(self, key, default=None):
+        return {**self._entry.data, **self._entry.options}.get(key, default)
 
     def _float(self, entity_id):
         if not entity_id: return None
