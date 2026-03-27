@@ -19,22 +19,20 @@
   - data: {}
     action: geoweather.update
 - id: geoweather_position_change
-  alias: GeoWeather – nach Positionswechsel
+  alias: GeoWeather – Update nach Ankunft
+  description: Aktualisiert Wetterdaten, wenn der Camper für X Minuten steht.
   triggers:
-  - entity_id:
-    - sensor.espgeopos_latitude_2
+  - entity_id: binary_sensor.moving
+    from: 'on'
+    to: 'off'
+    for:
+      minutes: 10
     trigger: state
   conditions:
   - condition: state
-    entity_id: binary_sensor.fahrt
-    state:
-    - 'off'
-  - condition: template
-    value_template: '{{ is_number(trigger.from_state.state) and is_number(trigger.to_state.state)
-      }}'
-  - condition: template
-    value_template: "{% set old = trigger.from_state.state | float(0) %}\n  {% set
-      new = trigger.to_state.state | float(0) %}\n  {{ (old - new) | abs > 0.01 }}"
+    entity_id: binary_sensor.moving
+    state: 'off'
   actions:
   - data: {}
     action: geoweather.update
+  mode: restart
