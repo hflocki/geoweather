@@ -110,7 +110,6 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
             "letzter_skip_grund":   getattr(self._coordinator, "last_skip_reason", None),
         }
 
-    # FIX: _cfg muss den Standardwert als Argument akzeptieren
     def _cfg(self, key, default=None):
         return {**self._entry.data, **self._entry.options}.get(key, default)
 
