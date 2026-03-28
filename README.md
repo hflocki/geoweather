@@ -471,6 +471,36 @@ cards:
 
 ```
 
+##Beispiel für Kacheln als Pollenraster (Einfügen unter Raw-Konfigurationseditor oberhalb von views: )
+```yaml
+button_card_templates:
+  pollen_style:
+    aspect_ratio: 1/1
+    styles:
+      card:
+        - border-radius: 15px
+        - padding: 10%
+      grid:
+        - grid-template-areas: '"i" "n"'
+        - grid-template-rows: 1fr min-content
+      icon:
+        - width: 80%
+        - color: |
+            [[[
+              const attr = variables.pollen_attr;
+              const v = entity.attributes[attr];
+              if (v == '0') return '#4caf50';
+              if (v == '1' || v == '1-2' || v == '0-1') return '#ffeb3b';
+              if (v == '2' || v == '2-3') return '#fb8c00';
+              if (v == '3') return '#e53935';
+              return 'grey';
+            ]]]
+      name:
+        - font-size: 11px
+        - font-weight: bold
+        - justify-self: center
+        - padding-top: 5px
+```
 ---
 
 ## Credits
