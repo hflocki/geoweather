@@ -188,15 +188,27 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             except ValueError: return 0.0
 
         for entry in data.get("content", []):
-            r_name, pr_name = entry.get("region_name", ""), entry.get("partregion_name", "")
+            # Wir holen uns alle Namen, die diese Region beschreiben
+            r_name = entry.get("region_name", "") or ""
+            pr_name = entry.get("partregion_name", "") or ""
+            
+            # Suche im Mapping oder direkt nach dem Kreisnamen
             if search_term.lower() in r_name.lower() or search_term.lower() in pr_name.lower():
                 res["dwd_teilregion"] = pr_name or r_name
                 pdata = entry.get("pollen", {})
+                
                 for p_type in POLLEN_TYPES:
-                    dwd_key = p_type.capitalize()
-                    # Wir speichern jetzt echte Zahlen!
-                    res[f"{p_type.lower()}_heute"] = _convert_pollen_value(pdata.get(dwd_key, {}).get("today"))
-                    res[f"{p_type.lower()}_morgen"] = _convert_pollen_value(pdata.get(dwd_key, {}).get("tomorrow"))
+                    p_val, p_val_morgen = 0.0, 0.0
+                    # Wir gehen alle Pollen-Keys im DWD-JSON durch
+                    for dwd_pollen_key, dwd_pollen_data in pdata.items():
+                        # Wenn unser Typ (z.B. Birke) im DWD-Key vorkommt
+                        if p_type.lower() in dwd_pollen_key.lower():
+                            p_val = _convert_pollen_value(dwd_pollen_data.get("today"))
+                            p_val_morgen = _convert_pollen_value(dwd_pollen_data.get("tomorrow"))
+                            break
+                    
+                    res[f"{p_type.lower()}_heute"] = p_val
+                    res[f"{p_type.lower()}_morgen"] = p_val_morgen
                 break
         return res
 
