@@ -3,6 +3,7 @@ DWD Radar – eigenständige Klasse für Niederschlagsradar-Daten.
 Basiert auf: https://github.com/stoppegp/ha-dwd-precipitation-forecast
 Angepasst für asynchrone Nutzung in GeoWeather (kein blocking requests).
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,7 +29,7 @@ class RadarNotAvailableError(Exception):
 class DWDRadar:
     """
     Verarbeitet DWD-Radar-Daten (RV-Format, tar.bz2).
-    
+
     Nutzung:
         radar = DWDRadar()
         radar.load_from_bytes(content)          # content = bytes aus HTTP-Response
@@ -41,6 +42,7 @@ class DWDRadar:
 
     def load_from_bytes(self, content: bytes) -> None:
         import numpy as np
+
         """Lädt Radar-Daten aus einem bereits heruntergeladenen tar.bz2-Archiv."""
         radars: dict[datetime, np.ndarray] = {}
         with tarfile.open(fileobj=BytesIO(content)) as tar:
@@ -59,7 +61,9 @@ class DWDRadar:
                         RADAR_YSIZE, RADAR_XSIZE
                     )
                 except Exception as exc:
-                    _LOGGER.debug("Radar-Member '%s' übersprungen: %s", member.name, exc)
+                    _LOGGER.debug(
+                        "Radar-Member '%s' übersprungen: %s", member.name, exc
+                    )
 
         self._radars = dict(sorted(radars.items()))
         _LOGGER.debug("Radar geladen: %d Zeitschritte", len(self._radars))
@@ -108,53 +112,60 @@ class DWDRadar:
 
         return values
 
-    def get_next_precipitation(self, lat: float, lon: float) -> dict:
-        """
-        Ermittelt Regenstart, -ende, -dauer, -max und -summe aus dem Forecast.
-        Gibt dict mit 'start', 'end', 'length', 'max', 'sum' zurück.
-        """
-        rain_start: datetime | None = None
-        rain_end: datetime | None = None
+    def get_next_precipitation(self, x, y):
+        precipitation_values = self.get_precipitation_values(x, y)
+        if not precipitation_values:
+            return {"start": None, "end": None, "length": 0, "max": 0, "sum": 0}
+
+        rain_start = None
+        rain_end = None
         rain_max = 0.0
         rain_sum = 0.0
 
-        for rain_time, precip in self.get_precipitation_values(lat, lon).items():
-            if rain_start is None and precip > 0:
-                rain_start = rain_time
-                rain_max = precip
-                rain_sum = precip
-                continue
-            if rain_start is not None:
-                rain_max = max(rain_max, precip)
-                rain_sum += precip
-            if rain_start is not None and rain_end is None and precip == 0:
-                rain_end = rain_time
-                continue
-            if rain_start is not None and rain_end is not None and precip != 0:
-                rain_end = None
-                continue
-            if rain_start is not None and rain_end is not None and precip == 0:
-                break
+        # Sortierte Zeiten durchlaufen
+        sorted_times = sorted(precipitation_values.keys())
+        last_time = sorted_times[-1]
 
-        rain_length: timedelta | None = None
-        if rain_start is not None:
-            rain_sum = rain_sum / 12
-            if rain_end is not None:
-                rain_length = rain_end - rain_start
+        for rain_time in sorted_times:
+            precipitation = precipitation_values[rain_time]
+
+            # Regen beginnt
+            if rain_start is None and precipitation > 0:
+                rain_start = rain_time
+
+            # Wenn wir bereits im Regen-Zeitraum sind
+            if rain_start is not None and rain_end is None:
+                if precipitation > 0:
+                    rain_max = max(rain_max, precipitation)
+                    # Summe korrigiert (DWD RV Werte sind mm/h, ein Intervall ist 5 Min = 1/12 h)
+                    rain_sum += precipitation / 12
+                else:
+                    # Regen hat aufgehört
+                    rain_end = rain_time
+                    break  # Wir haben ein abgeschlossenes Regenereignis gefunden
+
+        # Fallback: Wenn es regnet, aber die Daten aufhören, bevor der Regen aufhört
+        if rain_start is not None and rain_end is None:
+            rain_end = last_time
+
+        # Berechnung der Länge in Minuten
+        rain_length_min = 0
+        if rain_start and rain_end:
+            delta = rain_end - rain_start
+            rain_length_min = int(delta.total_seconds() / 60)
 
         return {
-            "start": rain_start.isoformat() if rain_start else None,
-            "end": rain_end.isoformat() if rain_end else None,
-            "length_min": int(rain_length.total_seconds() / 60) if rain_length else None,
-            "max_mmh": round(rain_max, 2),
-            "sum_mm": round(rain_sum, 2),
+            "start": rain_start,
+            "end": rain_end,
+            "length": rain_length_min,
+            "max": round(rain_max, 2),
+            "sum": round(rain_sum, 2),
         }
 
     def get_forecast_map(self, lat: float, lon: float) -> dict[str, float]:
         """Gibt alle Forecast-Zeitschritte als {ISO-Zeitstring: mm/h} zurück."""
         return {
-            t.isoformat(): v
-            for t, v in self.get_precipitation_values(lat, lon).items()
+            t.isoformat(): v for t, v in self.get_precipitation_values(lat, lon).items()
         }
 
     def get_current_value(self, lat: float, lon: float) -> float:
