@@ -62,7 +62,9 @@ Während der Einrichtung in der Benutzeroberfläche wählst du deine GPS-Quellen
 | **Satellites Sensor** | ➖ | Optional – zur Prüfung der GPS-Fix-Qualität. |
 | **Speed Threshold** | ➖ | Standard: `5.0` km/h – darüber gilt das Fahrzeug als fahrend. |
 | **Min. Satellites** | ➖ | Standard: `4` – darunter wird ein Update zum Schutz vor Fehlpositionen übersprungen. |
-| **Update Interval** | ➖ | Automatisches Polling in Minuten (Standard `30`). `0` deaktiviert das automatische Update (empfohlen bei Nutzung von Automatisierungen). |
+| **Update Interval** | ➖ | Automatisches Polling in Minuten (Standard `30`). `0` deaktiviert das automatische Update * |
+
+* bei einem Update-Intervall von 0 (Manuell) , werden Daten nur geladen, wenn der Service (die Action) aufgerufen wird.
 
 ---
 
@@ -72,7 +74,7 @@ Alle Entitäten werden unter einem gemeinsamen **GeoWeather-Gerät** gruppiert, 
 
 | Entität | State (Zustand) | Beschreibung |
 |:---|:---|:---|
-| `sensor.geoweather_location` | Gemeindename | Liefert Kreis, Bundesland und WarnCellID in den Attributen. |
+| `sensor.geoweather_standort` | Gemeindename | Liefert Kreis, Bundesland und WarnCellID in den Attributen. |
 | `sensor.geoweather_warnungen` | Anzahl (Int) | Anzahl aktiver Warnungen. Details (Event, Level, Beschreibung) in den Attributen. |
 | `sensor.geoweather_pollenflug` | Höchste Stufe | Aktueller Belastungsindex. Alle 8 Pollenarten sind als Attribute verfügbar. |
 | `sensor.geoweather_regenvorhersage` | mm/h | Aktuelle Regenrate. Inklusive 2h-Forecast-Map und Regenstart/-ende. |
@@ -102,13 +104,13 @@ Die Integration liefert die offiziellen DWD-Grenzwerte. Für Dashboards empfehle
 
 | Wert | Bedeutung | Beschreibung |
 |:---:|:---|:---|
-| **0** | Keine | Keine Belastung nachweisbar. |
-| **0-1** | Keine bis gering | Erste Pollen messbar, meist symptomfrei. |
-| **1** | Gering | Leicht erhöhte Konzentration. |
-| **1-2** | Gering bis mittel | Spürbare Belastung für Allergiker. |
-| **2** | Mittel | Deutliche Symptome treten auf. |
-| **2-3** | Mittel bis hoch | Starke Belastung, Aufenthalt im Freien einschränken. |
-| **3** | Stark | Maximale Warnstufe. |
+| 0.0 | Keine | Keine Belastung nachweisbar. |
+| 0.5 | Keine bis gering | (Früher 0-1) Erste Pollen messbar. |
+| 1.0 | Gering | Leicht erhöhte Konzentration. |
+| 1.5 | Gering bis mittel | (Früher 1-2) Spürbare Belastung. |
+| 2.0 | Mittel | Deutliche Symptome. |
+| 2.5 | Mittel bis hoch | (Früher 2-3) Starke Belastung. |
+| 3.0 | Stark | Maximale Warnstufe. |
 
 ---
 
@@ -203,17 +205,15 @@ name: Pollenflug
 show_state: true
 state_display: |
   [[[
-    const s = entity.state;
-    if (!s || s === 'unknown' || s === 'unavailable') return 'Lade...';
-    if (s === '0')   return 'Keine';
-    if (s === '0-1') return 'Keine bis gering';
-    if (s === '1')   return 'Gering';
-    if (s === '1-2') return 'Gering bis mittel';
-    if (s === '2')   return 'Mittel';
-    if (s === '2-3') return 'Mittel bis hoch';
-    if (s === '3')   return 'Stark';
-    return s;
-  ]]]
+  const v = parseFloat(entity.state);
+  if (v <= 0.5) return 'Keine/Gering';
+  if (v <= 1.0) return 'Gering';
+  if (v <= 1.5) return 'Gering-Mittel';
+  if (v <= 2.0) return 'Mittel';
+  if (v <= 2.5) return 'Mittel-Hoch';
+  if (v >= 3.0) return 'Stark';
+  return v;
+]]]
 styles:
   card:
     - padding: 5px
@@ -460,16 +460,7 @@ cards:
     name: |
       [[[ return "Region: " + entity.attributes.dwd_teilregion ]]]
     styles:
-      card:
-        - background: none
-        - border: none
-        - box-shadow: none
-        - padding: 5px
-      name:
-        - font-size: 12px
-        - font-style: italic
-        - opacity: 0.6
-        - justify-self: center
+      name: [font-size: 12px, font-style: italic, opacity: 0.6, justify-self: center]
 
 ```
 
@@ -480,28 +471,28 @@ button_card_templates:
     aspect_ratio: 1/1
     styles:
       card:
-        - border-radius: 15px
-        - padding: 10%
+        - border-radius: 12px
+        - padding: 8%
       grid:
-        - grid-template-areas: '"i" "n"'
-        - grid-template-rows: 1fr min-content
+        - grid-template-areas: '"i" "n" "s"'
+        - grid-template-rows: 1fr min-content min-content
       icon:
-        - width: 80%
+        - width: 70%
         - color: |
             [[[
-              const attr = variables.pollen_attr;
-              const v = parseFloat(entity.attributes[attr]);
-              if (v == 0) return '#4caf50';      // Grün (Keine)
-              if (v <= 1.5) return '#ffeb3b';   // Gelb (Gering)
-              if (v <= 2.5) return '#fb8c00';   // Orange (Mäßig)
-              if (v >= 3.0) return '#e53935';   // Rot (Hoch)
+              const v = parseFloat(entity.attributes[variables.pollen_attr]);
+              if (v == 0) return '#4caf50';    // Grün
+              if (v <= 1.5) return '#ffeb3b';  // Gelb
+              if (v <= 2.5) return '#fb8c00';  // Orange
+              if (v >= 3.0) return '#e53935';  // Rot
               return 'grey';
             ]]]
       name:
-        - font-size: 11px
+        - font-size: 10px
         - font-weight: bold
-        - justify-self: center
-        - padding-top: 5px
+      state:
+        - font-size: 9px
+        - opacity: 0.8
 ```
 ---
 
