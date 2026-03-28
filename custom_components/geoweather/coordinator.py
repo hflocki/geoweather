@@ -170,9 +170,13 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
     async def _fetch_location(self, session, lat, lon) -> dict:
         """WarnCell und Kreis ermitteln."""
-        url = URL_DWD_WARNCELL.format(lat=lat, lon=lon)
+        import time
+        t = int(time.time())
+        url = f"{URL_DWD_WARNCELL.format(lat=lat, lon=lon)}&_={t}"
+        
         async with session.get(url) as resp:
             data = await resp.json(content_type=None)
+            
         if not data.get("features"): return {"gemeinde": "Unbekannt", "kreis": "Unbekannt", "warncellid": None}
         p = data["features"][0]["properties"]
         return {"gemeinde": p.get("NAME"), "kreis": p.get("KREIS"), "warncellid": p.get("WARNCELLID")}
