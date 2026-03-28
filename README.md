@@ -127,11 +127,57 @@ Alle verfügbaren Regionen findest du in der `regions.md` im Repository.
 
 ---
 
-## Beispiel Automatisierungen
+## 🤖 Empfohlene Automatisierungen
 
-`automation.yaml.example`
+Da die Integration im fahrbereiten Zustand (Moving = ON) keine Daten abruft, um Ressourcen zu sparen, werden Automatisierungen genutzt, um Updates im Stand zu steuern.
 
+## Periodisches Update & Sofort-Update bei Stop
+Diese Automatisierung sorgt dafür, dass die Daten jede Stunde aktualisiert werden, sofern der Camper steht. Zusätzlich triggert sie sofort, wenn die Fahrt beendet wird.
+
+```yaml
+alias: "GeoWeather: Periodisches Update & Stop-Trigger"
+description: "Aktualisiert Daten stündlich und sofort beim Anhalten."
+id: geoweather_periodic_update
+trigger:
+  - platform: time_pattern
+    hours: "/1"
+  - platform: state
+    entity_id: binary_sensor.geoweather_moving
+    from: "on"
+    to: "off"
+condition:
+  - condition: state
+    entity_id: binary_sensor.geoweather_moving
+    state: "off"
+action:
+  - action: geoweather.update
+    data: {}
+mode: skip
 ---
+
+## Update nach Ankunft (Stabilisierungs-Sperre)
+Diese Automatisierung wartet, bis der Camper für 10 Minuten steht. Dies ist ideal, um sicherzustellen, dass man wirklich am Ziel angekommen ist und nicht nur an einer Ampel oder im Stau steht, bevor die Wetterdaten für den neuen Standort geladen werden.
+
+```yaml
+alias: "GeoWeather: Update nach Ankunft (10 Min)"
+description: "Aktualisiert Wetterdaten, wenn der Camper für 10 Minuten steht."
+id: geoweather_position_change
+trigger:
+  - platform: state
+    entity_id: binary_sensor.geoweather_moving
+    from: "on"
+    to: "off"
+    for:
+      minutes: 10
+condition:
+  - condition: state
+    entity_id: binary_sensor.geoweather_moving
+    state: "off"
+action:
+  - action: geoweather.update
+    data: {}
+mode: restart
+```
 
 ## Beispiel Dashboard Kacheln
 
