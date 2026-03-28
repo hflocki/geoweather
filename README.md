@@ -488,11 +488,11 @@ button_card_templates:
         - color: |
             [[[
               const attr = variables.pollen_attr;
-              const v = entity.attributes[attr];
-              if (v == '0') return '#4caf50';
-              if (v == '1' || v == '1-2' || v == '0-1') return '#ffeb3b';
-              if (v == '2' || v == '2-3') return '#fb8c00';
-              if (v == '3') return '#e53935';
+              const v = parseFloat(entity.attributes[attr]);
+              if (v == 0) return '#4caf50';      // Grün (Keine)
+              if (v <= 1.5) return '#ffeb3b';   // Gelb (Gering)
+              if (v <= 2.5) return '#fb8c00';   // Orange (Mäßig)
+              if (v >= 3.0) return '#e53935';   // Rot (Hoch)
               return 'grey';
             ]]]
       name:
