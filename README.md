@@ -390,50 +390,68 @@ cards:
     square: true
     cards:
       - type: custom:button-card
+        template: pollen_style
         entity: sensor.geoweather_pollenflug
         name: Birke
         icon: mdi:tree
-        styles:
-          icon:
-            - color: |
-                [[[
-                  const v = entity.attributes.birke_heute;
-                  if (v == '0') return '#4caf50';
-                  if (v == '1' || v == '1-2') return '#ffeb3b';
-                  if (v == '2' || v == '2-3') return '#fb8c00';
-                  if (v == '3') return '#e53935';
-                  return 'grey';
-                ]]]
+        variables:
+          pollen_attr: birke_heute
       - type: custom:button-card
+        template: pollen_style
         entity: sensor.geoweather_pollenflug
         name: Gräser
         icon: mdi:grass
-        styles:
-          icon:
-            - color: |
-                [[[
-                  const v = entity.attributes.graeser_heute;
-                  if (v == '0') return '#4caf50';
-                  if (v == '1' || v == '1-2') return '#ffeb3b';
-                  if (v == '2' || v == '2-3') return '#fb8c00';
-                  if (v == '3') return '#e53935';
-                  return 'grey';
-                ]]]
+        variables:
+          pollen_attr: graeser_heute
       - type: custom:button-card
+        template: pollen_style
         entity: sensor.geoweather_pollenflug
         name: Roggen
         icon: mdi:barley
-        styles:
-          icon:
-            - color: |
-                [[[
-                  const v = entity.attributes.roggen_heute;
-                  if (v == '0') return '#4caf50';
-                  if (v == '1' || v == '1-2') return '#ffeb3b';
-                  if (v == '2' || v == '2-3') return '#fb8c00';
-                  if (v == '3') return '#e53935';
-                  return 'grey';
-                ]]]
+        variables:
+          pollen_attr: roggen_heute
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollenflug
+        name: Erle
+        icon: mdi:leaf
+        variables:
+          pollen_attr: erle_heute
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollenflug
+        name: Hasel
+        icon: mdi:nut
+        variables:
+          pollen_attr: hasel_heute
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollenflug
+        name: Esche
+        icon: mdi:tree-outline
+        variables:
+          pollen_attr: esche_heute
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollenflug
+        name: Beifuß
+        icon: mdi:sprout
+        variables:
+          pollen_attr: beifuss_heute
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollenflug
+        name: Ambrosia
+        icon: mdi:flower-tulip
+        variables:
+          pollen_attr: ambrosia_heute
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollenflug
+        name: Eiche
+        icon: mdi:tree-outline
+        variables:
+          pollen_attr: eiche_heute
   - type: custom:button-card
     entity: sensor.geoweather_pollenflug
     show_icon: false
@@ -446,9 +464,11 @@ cards:
         - box-shadow: none
         - padding: 5px
       name:
-        - font-size: 14px
+        - font-size: 12px
         - font-style: italic
-        - opacity: 0.7
+        - opacity: 0.6
+        - justify-self: center
+
 ```
 
 ---
