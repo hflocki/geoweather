@@ -21,7 +21,6 @@ GeoWeather ist eine spezialisierte Home Assistant Integration für Wohnmobile un
 - 🌿 **Pollenflug-Vorhersage:** Heute / Morgen / Übermorgen für 9 Pollenarten
 - 🌧️ **Regenvorhersage:** Aktuelle Niederschlagsintensität + Forecast via DWD Radar
 - 🚗 **Fahrt-Erkennung:** Automatische Pausierung von API-Aufrufen während der Fahrt
-- ⏱️ **Mindest-Standzeit:** Kein Update bei Kurzstopps (Ampeln, Bahnübergänge)
 
 
 ---
@@ -50,81 +49,79 @@ Starte Homeassistant neu
 
 ---
 
-## Konfiguration
+## ⚙️ Konfiguration
 
-Während der Einrichtung wählst du deine GPS-Sensoren aus:
+Während der Einrichtung in der Benutzeroberfläche wählst du deine GPS-Quellen aus. Die Integration ist extrem flexibel und funktioniert mit **jeder** GPS-Quelle (ESPHome, GPSd, MQTT-Tracker, Smartphone-App, etc.).
 
 | Feld | Erforderlich | Beschreibung |
-|---|---|---|
-| Breitengrad-Sensor (Lat) | ✅ | z.B. `sensor.mein_gps_latitude` |
-| Längengrad-Sensor (Lon) | ✅ | z.B. `sensor.mein_gps_longitude` |
-| Geschwindigkeits-Sensor | ✅ | km/h – wird für die Fahrt-Erkennung genutzt |
-| Höhen-Sensor | ➖ | Optional – wird in den Attributen angezeigt |
-| Satelliten-Sensor | ➖ | Optional – ermöglicht Prüfung der GPS-Fix-Qualität |
-| Geschwindigkeits-Schwellenwert | ➖ | Standard: 5.0 km/h – darüber = Fahrzeug fährt |
-| Min. Satelliten | ➖ | Standard: 4 – darunter = schlechter Fix, Update überspringen |
-| Mindest steh Zeit | ➖ | Standard: 10 – mann muss mindestens 10 minuten stehen sonst, Update überspringen |
-
-Steh-Zeit
-0–30 Minuten, Schritte à 1 Minute, Standard 10 Minuten, Wert 0 = Feature deaktiviert
-
-Funktioniert mit **jeder** GPS-Quelle: ESPHome, GPSd, MQTT-Tracker, Smartphone, etc.
+|:---|:---:|:---|
+| **Latitude Sensor** | ✅ | z.B. `sensor.phone_latitude` |
+| **Longitude Sensor** | ✅ | z.B. `sensor.phone_longitude` |
+| **Speed Sensor** | ✅ | km/h – wird für die Erkennung von "Moving" genutzt. |
+| **Altitude Sensor** | ➖ | Optional – für die Anzeige der Meereshöhe. |
+| **Satellites Sensor** | ➖ | Optional – zur Prüfung der GPS-Fix-Qualität. |
+| **Speed Threshold** | ➖ | Standard: `5.0` km/h – darüber gilt das Fahrzeug als fahrend. |
+| **Min. Satellites** | ➖ | Standard: `4` – darunter wird ein Update zum Schutz vor Fehlpositionen übersprungen. |
+| **Update Interval** | ➖ | Automatisches Polling in Minuten (Standard `30`). `0` deaktiviert das automatische Update (empfohlen bei Nutzung von Automatisierungen). |
 
 ---
 
-## Entitäten
+## 📡 Entitäten
 
-Alle Entitäten werden unter einem gemeinsamen **GeoWeather-Gerät** gruppiert.
+Alle Entitäten werden unter einem gemeinsamen **GeoWeather-Gerät** gruppiert, um die Übersicht zu behalten.
 
-| Entität | State | Beschreibung |
-|---|---|---|
-| `sensor.standort` | Gemeindename | + Kreis, Bundesland, WarnCellID, GPS-Koordinaten |
-| `sensor.warnungen` | Anzahl (Integer) | + vollständige Warnliste in Attributen |
-| `sensor.pollenflug` | Höchste Stufe heute | + alle 9 Pollenarten × 3 Tage |
-| `sensor.regenvorhersage` | mm/h (aktuell) | + Forecast-Map, Regenstart/-ende |
-| `binary_sensor.faehrt` | `on`/`off` | `on` = fährt (Updates pausiert) |
+| Entität | State (Zustand) | Beschreibung |
+|:---|:---|:---|
+| `sensor.geoweather_location` | Gemeindename | Liefert Kreis, Bundesland und WarnCellID in den Attributen. |
+| `sensor.geoweather_warnungen` | Anzahl (Int) | Anzahl aktiver Warnungen. Details (Event, Level, Beschreibung) in den Attributen. |
+| `sensor.geoweather_pollenflug` | Höchste Stufe | Aktueller Belastungsindex. Alle 8 Pollenarten sind als Attribute verfügbar. |
+| `sensor.geoweather_regenvorhersage` | mm/h | Aktuelle Regenrate. Inklusive 2h-Forecast-Map und Regenstart/-ende. |
+| `binary_sensor.geoweather_moving` | `on` / `off` | `on` = Fahrt erkannt (Updates pausiert) |
+| `sensor.geoweather_api_call_intervall` | Minuten | Zeigt das aktuell konfigurierte Abruf-Intervall an. |
 
-> **Hinweis:** Der Warnungen-Sensor liefert als State eine **Ganzzahl** (0, 1, 2, ...). Das ermöglicht einfache Automationen wie `state > 0` statt String-Vergleiche.
-
----
-
-## Dienst: `geoweather.update`
-
-Löst einen frischen Abruf aller DWD-Daten aus. Wird automatisch übersprungen wenn:
-- Das Fahrzeug fährt (Geschwindigkeit > Schwellenwert)
-- Der GPS-Fix unzureichend ist (Satelliten < Minimum)
-- Die Mindest-Standzeit noch nicht erreicht ist
+> **Pro-Tipp:** Der Warnungen-Sensor liefert eine Ganzzahl. Du kannst ihn im Dashboard einfach mit einem Badge versehen oder Automationen triggern, wenn `state > 0`.
 
 ---
 
-## Pollenflug-Belastungsstufen
+## 🛠 Dienst: `geoweather.update`
 
-Die Integration liefert die präzisen DWD-Stufen als Strings. In Dashboards sollte bei Zwischenstufen (z.B. `1-2`) immer die höhere Warnfarbe gewählt werden.
+Dieser Dienst löst einen frischen Abruf aller DWD-Daten (Standort, Warnungen, Pollen, Radar) aus. 
+
+**Intelligente Sperren:**
+Der Dienst führt den Abruf nur aus, wenn:
+1. Das Fahrzeug **steht** (Geschwindigkeit unter dem Schwellenwert).
+2. Ein **gültiger GPS-Fix** vorliegt (sofern ein Satelliten-Sensor konfiguriert ist).
+
+Da die Mindest-Standzeit nun flexibel über Home Assistant Automatisierungen gesteuert wird (siehe `DASHBOARD.md`), reagiert dieser Dienst sofort, wenn er aufgerufen wird.
+
+---
+
+## 🌸 Pollenflug-Belastungsstufen
+
+Die Integration liefert die offiziellen DWD-Grenzwerte. Für Dashboards empfehlen wir, bei Zwischenstufen (z.B. `1-2`) immer die Farbe der höheren Stufe zu wählen.
 
 | Wert | Bedeutung | Beschreibung |
-|:---:|---|---|
-| **0** | Keine | Keine Belastung nachweisbar |
-| **0-1** | Keine bis gering | Erste Pollen, meist symptomfrei |
-| **1** | Gering | Leicht erhöhte Konzentration |
-| **1-2** | Gering bis mittel | Spürbare Belastung für Allergiker |
-| **2** | Mittel | Deutliche Symptome |
-| **2-3** | Mittel bis hoch | Starke Belastung, Aufenthalt einschränken |
-| **3** | Stark | Maximale Warnstufe |
+|:---:|:---|:---|
+| **0** | Keine | Keine Belastung nachweisbar. |
+| **0-1** | Keine bis gering | Erste Pollen messbar, meist symptomfrei. |
+| **1** | Gering | Leicht erhöhte Konzentration. |
+| **1-2** | Gering bis mittel | Spürbare Belastung für Allergiker. |
+| **2** | Mittel | Deutliche Symptome treten auf. |
+| **2-3** | Mittel bis hoch | Starke Belastung, Aufenthalt im Freien einschränken. |
+| **3** | Stark | Maximale Warnstufe. |
 
 ---
 
-## Pollen Region Mapping
+## 🗺 Pollen Region Mapping
 
-Der DWD liefert Pollendaten nach Regionen (z.B. "Harz"), nicht nach Kreisen. Erstelle eine Datei `pollen_mapping.yaml` direkt in deinem `/config/` Ordner:
+Da der DWD Pollendaten nach meteorologischen Regionen (z.B. "Rhein.-Westfäl. Tiefland") und nicht nach exakten Kreisen bereitstellt, nutzt GeoWeather ein Mapping. 
+Sollte dein Kreis nicht automatisch erkannt werden, kannst du eine `pollen_mapping.yaml` im `/config/` Ordner anlegen:
 
 ```yaml
 "Landkreis Harz": "Harz"
+"Wermelskirchen": "Rhein.-Westfäl. Tiefland"
 "München": "Allgäu/Oberbayern/Bay. Wald"
-"Rheinisch-Bergischer Kreis": "Rhein.-Westfäl. Tiefland"
 ```
-
-Alle verfügbaren Regionen findest du in der `regions.md` im Repository.
-
 ---
 
 ## 🤖 Empfohlene Automatisierungen
