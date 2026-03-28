@@ -135,7 +135,278 @@ Alle verfügbaren Regionen findest du in der `regions.md` im Repository.
 
 ## Beispiel Dashboard Kacheln
 
-`dashboard.yaml.example`
+# 🌦️ GeoWeather Dashboard Beispiele
+
+Dieses Dokument enthält fertige Konfigurationen für dein Home Assistant Dashboard. Die Karten sind darauf optimiert, die Daten der GeoWeather-Integration (Warnungen, Pollenflug, Regenradar) übersichtlich darzustellen.
+
+## 🛠️ Voraussetzungen
+
+Damit diese Karten funktionieren, müssen folgende Erweiterungen über **HACS** installiert sein:
+1. [button-card](https://github.com/custom-cards/button-card)
+2. [mushroom-cards](https://github.com/piitaya/lovelace-mushroom)
+3. [card-mod](https://github.com/thomasloven/lovelace-card-mod)
+
+---
+
+## Pollenflug Status (Hauptkarte)
+Diese Karte zeigt das aktuelle Maximum der Pollenbelastung. Der Hintergrund und das Icon färben sich je nach Warnstufe automatisch ein.
+
+```yaml
+type: custom:button-card
+entity: sensor.geoweather_pollenflug
+aspect_ratio: 1/1
+show_name: true
+name: Pollenflug
+show_state: true
+state_display: |
+  [[[
+    const s = entity.state;
+    if (!s || s === 'unknown' || s === 'unavailable') return 'Lade...';
+    if (s === '0')   return 'Keine';
+    if (s === '0-1') return 'Keine bis gering';
+    if (s === '1')   return 'Gering';
+    if (s === '1-2') return 'Gering bis mittel';
+    if (s === '2')   return 'Mittel';
+    if (s === '2-3') return 'Mittel bis hoch';
+    if (s === '3')   return 'Stark';
+    return s;
+  ]]]
+styles:
+  card:
+    - padding: 5px
+    - background-color: |
+        [[[
+          const s = entity.state;
+          if (!s || s === 'unknown' || s === 'unavailable' || s === '0') 
+            return 'var(--card-background-color)';
+          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          if (val === 1) return '#ffeb3b'; // Gelb
+          if (val === 2) return '#fb8c00'; // Orange
+          if (val >= 3) return '#e53935';  // Rot
+          return 'var(--card-background-color)';
+        ]]]
+  icon:
+    - color: |
+        [[[
+          const s = entity.state;
+          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') return '#c5e566';
+          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          return (val === 1 || val === 2) ? 'black' : 'white';
+        ]]]
+  name:
+    - font-weight: bold
+    - font-size: 12px
+    - color: |
+        [[[
+          const s = entity.state;
+          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') 
+            return 'var(--primary-text-color)';
+          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          return (val === 1 || val === 2) ? 'black' : 'white';
+        ]]]
+  state:
+    - font-size: 11px
+    - font-weight: bold
+    - color: |
+        [[[
+          const s = entity.state;
+          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') 
+            return 'var(--primary-text-color)';
+          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          return (val === 1 || val === 2) ? 'black' : 'white';
+        ]]]
+
+```
+
+
+
+## Wetterwarnungen (Status-Icon)
+
+```yaml
+
+type: custom:button-card
+entity: sensor.geoweather_warnungen
+aspect_ratio: 1/1
+show_name: false
+show_label: true
+label: |-
+  [[[ 
+    const anzahl = parseInt(entity.state);
+    const warnings = entity.attributes.warnungen;
+    if (isNaN(anzahl) || anzahl === 0 || !warnings || warnings.length === 0) return 'Alles ok';
+    return warnings[0].ereignis; 
+  ]]]
+icon: mdi:shield-check
+size: 45%
+state:
+  - operator: template
+    value: |-
+      [[[ 
+        const warnings = entity.attributes.warnungen;
+        return warnings && warnings.length > 0 && parseInt(warnings[0].schwere_level) >= 3;
+      ]]]
+    styles:
+      icon:
+        - animation: blink 2s ease-in-out infinite
+      label:
+        - animation: blink 2s ease-in-out infinite
+styles:
+  grid:
+    - grid-template-areas: "\"i\" \"l\" \"s\""
+    - grid-template-rows: 1fr auto min-content
+  card:
+    - padding: 5px
+    - background-color: |-
+        [[[ 
+          const warnings = entity.attributes.warnungen;
+          if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
+          const level = parseInt(warnings[0].schwere_level);
+          if (level <= 1) return '#ffeb3b'; // Gelb
+          if (level === 2) return '#fb8c00'; // Orange
+          if (level === 3) return '#e53935'; // Rot
+          if (level >= 4) return '#880e4f';  // Violett
+          return 'var(--card-background-color)';
+        ]]]
+  icon:
+    - color: |-
+        [[[ 
+          const warnings = entity.attributes.warnungen;
+          if (!warnings || warnings.length === 0) return '#c5e566';
+          const level = parseInt(warnings[0].schwere_level);
+          return (level <= 2) ? 'black' : 'white'; 
+        ]]]
+  label:
+    - font-size: 10px
+    - font-weight: bold
+    - color: |-
+        [[[ 
+          const warnings = entity.attributes.warnungen;
+          if (!warnings || warnings.length === 0) return 'var(--primary-text-color)';
+          const level = parseInt(warnings[0].schwere_level);
+          return (level <= 2) ? 'black' : 'white'; 
+        ]]]
+```
+
+
+## Warnungs-Details (Markdown-Liste)
+
+```yaml
+type: markdown
+content: |
+  {% set warnungen = state_attr('sensor.geoweather_warnungen', 'warnungen') %}
+  {% if warnungen %}
+    {% for w in warnungen %}
+    ### ⚠️ {{ w.ereignis }}
+    **{{ w.headline }}**
+    *🕒 {{ as_timestamp(w.beginn) | timestamp_custom('%H:%M') }} - {{ as_timestamp(w.ende) | timestamp_custom('%H:%M Uhr') }}*
+    > {{ w.beschreibung }}
+    ---
+    {% endfor %}
+  {% else %}
+    *Aktuell liegen keine Warnmeldungen vor.*
+  {% endif %}
+```
+
+## Regenvorhersage (Mushroom Style)
+```yaml
+type: custom:mushroom-template-card
+entity: sensor.geoweather_regenvorhersage
+icon: mdi:weather-rainy
+icon_color: |-
+  {% if states(entity) | float(0) > 0 %} blue {% else %} grey {% endif %}
+primary: |2-
+  {% set next_start = state_attr(entity, 'next_start') %}
+  {% set next_end = state_attr(entity, 'next_end') %}
+  {% set next_length = state_attr(entity, 'next_length_min') %}
+  {% if next_start is not none %}
+    {% set start_ts = next_start | as_timestamp(0) %}
+    {% set now_ts = now() | as_timestamp %}
+    {% if (start_ts > now_ts) %}
+      In {{ ((start_ts - now_ts) / 60) | int }} Min. Regen für {{ next_length }} Min.
+    {% elif (next_end is not none) %}
+      Regen noch für {{ ((as_timestamp(next_end) - now_ts) / 60) | int }} Min.
+    {% else %}
+      Aktuell Dauerregen.
+    {% endif %}
+  {% else %}
+    Kein Regen in Sicht.
+  {% endif %}
+card_mod:
+  style: |
+    ha-card {
+      background-image: linear-gradient(90deg{% set forecast = state_attr(config.entity, 'forecast') %}{% if forecast %}{% set duration = forecast.keys() | last | as_timestamp - now() | as_timestamp %}{% for x, y in forecast.items() %}{% set pos = ((x | as_timestamp - now() | as_timestamp)/duration*100) | round %}{% set alpha = 0.5 if y > 0 else 0 %}{% if pos >= 0 %}, hsla(200, 100%, 50%, {{alpha}}) {{pos}}%{% endif %}{% endfor %}{% endif %});
+    }
+```
+
+## Detaillierte Pollen-Übersicht (Grid)
+```yaml
+type: vertical-stack
+cards:
+  - type: grid
+    columns: 3
+    square: true
+    cards:
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Birke
+        icon: mdi:tree
+        styles:
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.birke_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Gräser
+        icon: mdi:grass
+        styles:
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.graeser_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+      - type: custom:button-card
+        entity: sensor.geoweather_pollenflug
+        name: Roggen
+        icon: mdi:barley
+        styles:
+          icon:
+            - color: |
+                [[[
+                  const v = entity.attributes.roggen_heute;
+                  if (v == '0') return '#4caf50';
+                  if (v == '1' || v == '1-2') return '#ffeb3b';
+                  if (v == '2' || v == '2-3') return '#fb8c00';
+                  if (v == '3') return '#e53935';
+                  return 'grey';
+                ]]]
+  - type: custom:button-card
+    entity: sensor.geoweather_pollenflug
+    show_icon: false
+    name: |
+      [[[ return "Region: " + entity.attributes.dwd_teilregion ]]]
+    styles:
+      card:
+        - background: none
+        - border: none
+        - box-shadow: none
+        - padding: 5px
+      name:
+        - font-size: 14px
+        - font-style: italic
+        - opacity: 0.7
+```
 
 ---
 
