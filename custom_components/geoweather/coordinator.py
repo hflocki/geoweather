@@ -151,18 +151,33 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         return await self.hass.async_add_executor_job(_process)
 
     async def _fetch_pollen(self, session, kreis) -> dict:
+        # 1. Mapping prüfen (z.B. "Rheinisch-Bergischer Kreis" -> "Rhein.-Westfäl. Tiefland")
         search_term = self._pollen_mapping.get(kreis, kreis)
+        
         async with session.get(URL_DWD_POLLEN) as resp:
             data = await resp.json(content_type=None)
-        res = {"dwd_region": "Unbekannt"}
+            
+        # 2. Ergebnis-Struktur vorbereiten (WICHTIG: dwd_teilregion statt dwd_region)
+        res = {"dwd_teilregion": "Unbekannt"}
+        
+        # 3. Suche in den DWD-Daten
         for entry in data.get("content", []):
-            if search_term.lower() in entry.get("region_name", "").lower() or search_term.lower() in entry.get("partregion_name", "").lower():
-                res["dwd_region"] = entry.get("region_name")
+            r_name = entry.get("region_name", "")
+            pr_name = entry.get("partregion_name", "")
+            
+            if search_term.lower() in r_name.lower() or search_term.lower() in pr_name.lower():
+                # Gefundene Region speichern
+                res["dwd_teilregion"] = pr_name or r_name
+                
                 pdata = entry.get("pollen", {})
                 for p_type in POLLEN_TYPES:
-                    res[f"{p_type}_heute"] = str(pdata.get(p_type, {}).get("today", "0"))
-                    res[f"{p_type}_morgen"] = str(pdata.get(p_type, {}).get("tomorrow", "0"))
+                    # Kleinschreibung beachten, da POLLEN_TYPES meist ["Birke", ...] sind
+                    p_key = p_type.lower() 
+                    res[f"{p_key}_heute"] = str(pdata.get(p_type, {}).get("today", "0"))
+                    res[f"{p_key}_morgen"] = str(pdata.get(p_type, {}).get("tomorrow", "0"))
+                    res[f"{p_key}_uebermorgen"] = str(pdata.get(p_type, {}).get("dayafter_to", "0"))
                 break
+                
         return res
 
     async def _fetch_location(self, session, lat, lon) -> dict:
