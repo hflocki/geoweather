@@ -184,17 +184,25 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         return res
 
     async def _fetch_location(self, session, lat, lon) -> dict:
-        """WarnCell und Kreis ermitteln mit Cache-Buster."""
+        """WarnCell ermitteln über cql_filter mit Cache-Buster."""
         import time
-        # Der Zeitstempel zwingt den DWD-Server, die Anfrage nicht aus dem Cache zu laden
         t = int(time.time())
-        # Wir bauen die URL manuell zusammen, um sicherzugehen, dass lat/lon drin sind
-        url = f"https://maps.dwd.de/geoserver/dwd/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=dwd:Warngebiete_Gemeinden&outputFormat=application/json&cql_filter=INTERSECTS(GEOMETRY,POINT({lat}%20{lon}))&_={t}"
+        
+        # Wir füllen lon und lat in die neue Filter-Struktur
+        url = URL_DWD_WARNCELL.format(lon=lon, lat=lat) + f"&_={t}"
         
         async with session.get(url) as resp:
-            data = await resp.json(content_type=None)
+            if resp.status != 200:
+                _LOGGER.error("DWD Fehler: Status %s", resp.status)
+                return {"gemeinde": "Fehler", "kreis": "Unbekannt"}
             
-        if not data.get("features"): 
+            try:
+                data = await resp.json(content_type=None)
+            except Exception:
+                # Falls der DWD-Server doch mal Müll schickt
+                return {"gemeinde": "Datenfehler", "kreis": "Unbekannt"}
+
+        if not data.get("features"):
             return {"gemeinde": "Unbekannt", "kreis": "Unbekannt", "warncellid": None}
             
         p = data["features"][0]["properties"]
@@ -203,7 +211,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             "kreis": p.get("KREIS"), 
             "warncellid": p.get("WARNCELLID")
         }
-
+        
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
         """Manueller Service-Call."""
         await self.async_refresh()
