@@ -96,19 +96,35 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         }
 
     async def _fetch_warnings(self, session: aiohttp.ClientSession, lat: float, lon: float) -> dict:
-        """Wetterwarnungen abrufen."""
-        url = URL_DWD_WARNINGS.format(south=lat-0.05, west=lon-0.05, north=lat+0.05, east=lon+0.05)
+        """Wetterwarnungen abrufen mit BBOX."""
+        import time
+        t = int(time.time())
+        
+        # Wir erstellen die Box (identisch zum Standort-Check)
+        south, north = lat - 0.005, lat + 0.005
+        west, east = lon - 0.005, lon + 0.005
+        
+        url = URL_DWD_WARNINGS.format(
+            south=south, west=west, north=north, east=east
+        ) + f"&_={t}"
+
         async with session.get(url) as resp:
+            if resp.status != 200:
+                return {"anzahl": 0, "warnungen": []}
             data = await resp.json(content_type=None)
 
         items = []
+        # Mapping für Schweregrade (DWD nutzt oft Texte statt Zahlen)
         sev_map = {"Minor": 1, "Moderate": 2, "Severe": 3, "Extreme": 4}
 
         for feat in data.get("features", []):
             p = feat.get("properties", {})
+            
+            # Event-Name (z.B. WINDBÖEN)
             raw_event = p.get("EVENT", "Unbekannt")
             ereignis = raw_event.capitalize() if isinstance(raw_event, str) and not raw_event.isdigit() else DWD_EVENT_TYPES.get(int(raw_event or 0), str(raw_event))
 
+            # Schweregrad ermitteln
             raw_sev = p.get("SEVERITY", 0)
             sev_level = sev_map.get(raw_sev, 0) if isinstance(raw_sev, str) else int(raw_sev or 0)
 
@@ -122,6 +138,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 "ende": p.get("EXPIRES"),
             })
         
+        # Sortierung: Die schlimmste Warnung nach oben
         items.sort(key=lambda x: x["schwere_level"], reverse=True)
         return {"anzahl": len(items), "warnungen": items}
 
