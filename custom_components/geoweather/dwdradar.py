@@ -121,43 +121,37 @@ class DWDRadar:
         rain_end = None
         rain_max = 0.0
         rain_sum = 0.0
-
-        # Sortierte Zeiten durchlaufen
+        
         sorted_times = sorted(precipitation_values.keys())
-        last_time = sorted_times[-1]
-
+        
         for rain_time in sorted_times:
-            precipitation = precipitation_values[rain_time]
+            precip = precipitation_values[rain_time]
+            
+            if precip > 0:
+                if rain_start is None:
+                    rain_start = rain_time
+                # Wir schieben das Ende immer weiter nach hinten, solange es regnet
+                rain_end = rain_time + timedelta(minutes=5)
+                rain_max = max(rain_max, precip)
+                rain_sum += (precip / 12)
+            else:
+                # Wenn wir schon Regen hatten und jetzt eine 0 kommt: 
+                # Nur abbrechen, wenn wir weit genug in der Zukunft sind (Ende gefunden)
+                if rain_start is not None:
+                    # Optional: Hier könnte man kleine Pausen von 5 Min ignorieren.
+                    # Für den Moment: Wir haben ein Ende gefunden.
+                    if rain_end is not None and rain_time >= rain_end:
+                        break
 
-            # Regen beginnt
-            if rain_start is None and precipitation > 0:
-                rain_start = rain_time
-
-            # Wenn wir bereits im Regen-Zeitraum sind
-            if rain_start is not None and rain_end is None:
-                if precipitation > 0:
-                    rain_max = max(rain_max, precipitation)
-                    # Summe korrigiert (DWD RV Werte sind mm/h, ein Intervall ist 5 Min = 1/12 h)
-                    rain_sum += precipitation / 12
-                else:
-                    # Regen hat aufgehört
-                    rain_end = rain_time
-                    break  # Wir haben ein abgeschlossenes Regenereignis gefunden
-
-        # Fallback: Wenn es regnet, aber die Daten aufhören, bevor der Regen aufhört
-        if rain_start is not None and rain_end is None:
-            rain_end = last_time
-
-        # Berechnung der Länge in Minuten
-        rain_length_min = 0
+        # Berechnung der Länge
+        length_min = 0
         if rain_start and rain_end:
-            delta = rain_end - rain_start
-            rain_length_min = int(delta.total_seconds() / 60)
+            length_min = int((rain_end - rain_start).total_seconds() / 60)
 
         return {
             "start": rain_start,
             "end": rain_end,
-            "length": rain_length_min,
+            "length": length_min,
             "max": round(rain_max, 2),
             "sum": round(rain_sum, 2),
         }
