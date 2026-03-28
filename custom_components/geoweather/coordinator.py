@@ -150,12 +150,26 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         return await self.hass.async_add_executor_job(_process)
 
     async def _fetch_pollen(self, session, kreis) -> dict:
-        """Pollendaten abrufen."""
+        """Pollendaten abrufen und Werte in Zahlen umwandeln."""
         search_term = self._pollen_mapping.get(kreis, kreis)
         async with session.get(URL_DWD_POLLEN) as resp:
             data = await resp.json(content_type=None)
             
         res = {"dwd_teilregion": "Unbekannt"}
+
+        def _convert_pollen_value(val):
+            """Wandelt DWD-Werte (0, 1-2, 2-3, 3) in Floats (0.0, 1.5, 2.5, 3.0) um."""
+            if val is None or val == "-1": return 0.0
+            val = str(val)
+            if "-" in val:
+                try:
+                    low, high = val.split("-")
+                    return float(low) + 0.5
+                except ValueError: return 0.0
+            try:
+                return float(val)
+            except ValueError: return 0.0
+
         for entry in data.get("content", []):
             r_name, pr_name = entry.get("region_name", ""), entry.get("partregion_name", "")
             if search_term.lower() in r_name.lower() or search_term.lower() in pr_name.lower():
@@ -163,23 +177,32 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 pdata = entry.get("pollen", {})
                 for p_type in POLLEN_TYPES:
                     dwd_key = p_type.capitalize()
-                    res[f"{p_type.lower()}_heute"] = str(pdata.get(dwd_key, {}).get("today", "0"))
-                    res[f"{p_type.lower()}_morgen"] = str(pdata.get(dwd_key, {}).get("tomorrow", "0"))
+                    # Wir speichern jetzt echte Zahlen!
+                    res[f"{p_type.lower()}_heute"] = _convert_pollen_value(pdata.get(dwd_key, {}).get("today"))
+                    res[f"{p_type.lower()}_morgen"] = _convert_pollen_value(pdata.get(dwd_key, {}).get("tomorrow"))
                 break
         return res
 
     async def _fetch_location(self, session, lat, lon) -> dict:
-        """WarnCell und Kreis ermitteln."""
+        """WarnCell und Kreis ermitteln mit Cache-Buster."""
         import time
+        # Der Zeitstempel zwingt den DWD-Server, die Anfrage nicht aus dem Cache zu laden
         t = int(time.time())
-        url = f"{URL_DWD_WARNCELL.format(lat=lat, lon=lon)}&_={t}"
+        # Wir bauen die URL manuell zusammen, um sicherzugehen, dass lat/lon drin sind
+        url = f"https://maps.dwd.de/geoserver/dwd/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=dwd:Warngebiete_Gemeinden&outputFormat=application/json&cql_filter=INTERSECTS(GEOMETRY,POINT({lat}%20{lon}))&_={t}"
         
         async with session.get(url) as resp:
             data = await resp.json(content_type=None)
             
-        if not data.get("features"): return {"gemeinde": "Unbekannt", "kreis": "Unbekannt", "warncellid": None}
+        if not data.get("features"): 
+            return {"gemeinde": "Unbekannt", "kreis": "Unbekannt", "warncellid": None}
+            
         p = data["features"][0]["properties"]
-        return {"gemeinde": p.get("NAME"), "kreis": p.get("KREIS"), "warncellid": p.get("WARNCELLID")}
+        return {
+            "gemeinde": p.get("NAME"), 
+            "kreis": p.get("KREIS"), 
+            "warncellid": p.get("WARNCELLID")
+        }
 
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
         """Manueller Service-Call."""
