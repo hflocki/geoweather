@@ -121,21 +121,21 @@ class DWDRadar:
         rain_end = None
         rain_max = 0.0
         rain_sum = 0.0
-        
+
         sorted_times = sorted(precipitation_values.keys())
-        
+
         for rain_time in sorted_times:
             precip = precipitation_values[rain_time]
-            
+
             if precip > 0:
                 if rain_start is None:
                     rain_start = rain_time
                 # Wir schieben das Ende immer weiter nach hinten, solange es regnet
                 rain_end = rain_time + timedelta(minutes=5)
                 rain_max = max(rain_max, precip)
-                rain_sum += (precip / 12)
+                rain_sum += precip / 12
             else:
-                # Wenn wir schon Regen hatten und jetzt eine 0 kommt: 
+                # Wenn wir schon Regen hatten und jetzt eine 0 kommt:
                 # Nur abbrechen, wenn wir weit genug in der Zukunft sind (Ende gefunden)
                 if rain_start is not None:
                     # Optional: Hier könnte man kleine Pausen von 5 Min ignorieren.
