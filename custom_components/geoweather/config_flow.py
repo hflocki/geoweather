@@ -106,33 +106,27 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
         self._entry = entry
 
     async def async_step_init(self, user_input=None):
-        errors: dict = {}
-        # Daten aus Setup und Optionen zusammenführen
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Daten aus Setup und Optionen zusammenführen, um aktuelle Werte anzuzeigen
         merged = {**self._entry.data, **self._entry.options}
 
-        if user_input is not None:
-            if float(user_input.get(CONF_SPEED_THRESHOLD, 0)) < 0:
-                errors[CONF_SPEED_THRESHOLD] = "invalid_speed"
-            elif int(user_input.get(CONF_MIN_SATELLITES, 1)) < 1:
-                errors[CONF_MIN_SATELLITES] = "invalid_satellites"
-            else:
-                return self.async_create_entry(title="", data=user_input)
-
-        schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_SPEED_THRESHOLD,
-                    default=merged.get(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD),
-                ): _number(0, 50, 0.5, "km/h"),
-                vol.Optional(
-                    CONF_MIN_SATELLITES,
-                    default=merged.get(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES),
-                ): _number(1, 20, 1, "Satelliten"),
-                vol.Optional(
-                    CONF_UPDATE_INTERVAL,
-                    default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
-                ): _number(0, 1440, 5, "Minuten"),
-            }
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                # Hier werden die Sensoren nun auch im Optionen-Menü angezeigt:
+                vol.Optional(CONF_LAT_SENSOR, default=merged.get(CONF_LAT_SENSOR)): _ENTITY_SELECTOR,
+                vol.Optional(CONF_LON_SENSOR, default=merged.get(CONF_LON_SENSOR)): _ENTITY_SELECTOR,
+                vol.Optional(CONF_SPEED_SENSOR, default=merged.get(CONF_SPEED_SENSOR)): _ENTITY_SELECTOR,
+                vol.Optional(CONF_ALT_SENSOR, default=merged.get(CONF_ALT_SENSOR)): _ENTITY_SELECTOR,
+                vol.Optional(CONF_SAT_SENSOR, default=merged.get(CONF_SAT_SENSOR)): _ENTITY_SELECTOR,
+                
+                # Die Schwellenwerte und Intervalle:
+                vol.Optional(CONF_SPEED_THRESHOLD, default=merged.get(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD)): _number(0, 50, 0.5, "km/h"),
+                vol.Optional(CONF_MIN_SATELLITES, default=merged.get(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES)): _number(0, 20, 1, "Sats"),
+                vol.Optional(CONF_UPDATE_INTERVAL, default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)): _number(0, 1440, 5, "Min"),
+            })
         )
 
         return self.async_show_form(
