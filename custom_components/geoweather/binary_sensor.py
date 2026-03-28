@@ -15,6 +15,8 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
     CONF_ALT_SENSOR,
+    CONF_LAT_SENSOR, 
+    CONF_LON_SENSOR,
     CONF_MIN_SATELLITES,
     CONF_SAT_SENSOR,
     CONF_SPEED_SENSOR,
@@ -97,6 +99,8 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
 
         return {
             "geschwindigkeit_kmh":  speed,
+            "latitude_aktuell":     lat,
+            "longitude_aktuell":    lon,
             "schwellenwert_kmh":    threshold,
             "hoehe_m":              altitude,
             "satelliten":           satellites,
