@@ -87,6 +87,8 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
     def extra_state_attributes(self) -> dict:
         """Attribute für Tacho, Höhe und Standzeit."""
         speed = self._float(self._cfg(CONF_SPEED_SENSOR))
+        lat = self._float(self._cfg(CONF_LAT_SENSOR))
+        lon = self._float(self._cfg(CONF_LON_SENSOR))
         altitude = self._float(self._cfg(CONF_ALT_SENSOR))
         satellites = self._float(self._cfg(CONF_SAT_SENSOR))
         threshold = float(self._cfg(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD))
