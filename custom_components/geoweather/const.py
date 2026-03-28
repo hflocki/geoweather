@@ -26,7 +26,7 @@ URL_DWD_WARNCELL = (
     "?service=WFS&version=2.0.0&request=GetFeature"
     "&typeNames=dwd:Warngebiete_Gemeinden"
     "&outputFormat=application/json"
-    "&cql_filter=INTERSECTS(GEOMETRY,POINT({lon}%20{lat}))"
+    "&bbox={south},{west},{north},{east},urn:ogc:def:crs:EPSG::4326"
 )
 
 # Diese URL braucht south, west, north, east (bbox)
