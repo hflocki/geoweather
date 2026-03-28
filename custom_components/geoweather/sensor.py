@@ -1,4 +1,5 @@
 """Sensors for GeoWeather – Location, Warnings, Pollen, Rain, API-Interval."""
+
 from __future__ import annotations
 
 from homeassistant.components.sensor import (
@@ -20,18 +21,21 @@ ATTRIBUTION = "Daten bereitgestellt vom Deutschen Wetterdienst (DWD)"
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> None:
     """Set up the sensor platform."""
     coordinator: GeoWeatherCoordinator = hass.data[DOMAIN][entry.entry_id]
-    
-    async_add_entities([
-        GeoWeatherLocationSensor(coordinator, entry),
-        GeoWeatherWarnungsSensor(coordinator, entry),
-        GeoWeatherPollenSensor(coordinator, entry),
-        GeoWeatherRainSensor(coordinator, entry),
-        GeoWeatherIntervalSensor(coordinator, entry),
-    ])
+
+    async_add_entities(
+        [
+            GeoWeatherLocationSensor(coordinator, entry),
+            GeoWeatherWarnungsSensor(coordinator, entry),
+            GeoWeatherPollenSensor(coordinator, entry),
+            GeoWeatherRainSensor(coordinator, entry),
+            GeoWeatherIntervalSensor(coordinator, entry),
+        ]
+    )
 
 
 class _Base(CoordinatorEntity, SensorEntity):
     """Base class for GeoWeather sensors."""
+
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
@@ -66,8 +70,10 @@ class _Base(CoordinatorEntity, SensorEntity):
 
 # ── Sensor 1: Standort ────────────────────────────────────────────────────────
 
+
 class GeoWeatherLocationSensor(_Base):
     """Zeigt den aktuellen Warnzell-Namen an."""
+
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
         self._attr_name = "Standort"
@@ -83,22 +89,24 @@ class GeoWeatherLocationSensor(_Base):
     def extra_state_attributes(self) -> dict:
         loc = self._data.get("location", {})
         return {
-            "kreis":          loc.get("kreis"),
-            "bundesland":     loc.get("bundesland"),
-            "warncellid":     loc.get("warncellid"),
-            "latitude":       self._gps.get("latitude"),
-            "longitude":      self._gps.get("longitude"),
-            "hoehe_m":        self._gps.get("altitude_m"),
-            "satelliten":     self._gps.get("satellites"),
-            "aktualisiert":   self._data.get("last_updated"),
+            "kreis": loc.get("kreis"),
+            "bundesland": loc.get("bundesland"),
+            "warncellid": loc.get("warncellid"),
+            "latitude": self._gps.get("latitude"),
+            "longitude": self._gps.get("longitude"),
+            "hoehe_m": self._gps.get("altitude_m"),
+            "satelliten": self._gps.get("satellites"),
+            "aktualisiert": self._data.get("last_updated"),
             ATTR_ATTRIBUTION: ATTRIBUTION,
         }
 
 
 # ── Sensor 2: Warnungen ───────────────────────────────────────────────────────
 
+
 class GeoWeatherWarnungsSensor(_Base):
     """Anzahl der aktiven Wetterwarnungen."""
+
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:alert-rhombus"
 
@@ -116,18 +124,20 @@ class GeoWeatherWarnungsSensor(_Base):
         warn = self._data.get("warnings", {})
         return {
             "hoechste_schwere": warn.get("hoechste_schwere"),
-            "warnungen":        warn.get("warnungen", []),
-            "latitude":         self._gps.get("latitude"),
-            "longitude":        self._gps.get("longitude"),
-            "aktualisiert":     self._data.get("last_updated"),
-            ATTR_ATTRIBUTION:   ATTRIBUTION,
+            "warnungen": warn.get("warnungen", []),
+            "latitude": self._gps.get("latitude"),
+            "longitude": self._gps.get("longitude"),
+            "aktualisiert": self._data.get("last_updated"),
+            ATTR_ATTRIBUTION: ATTRIBUTION,
         }
 
 
 # ── Sensor 3: Pollenflug ──────────────────────────────────────────────────────
 
+
 class GeoWeatherPollenSensor(_Base):
     """Gibt den höchsten Belastungswert für heute aus."""
+
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
         self._attr_name = "Pollenflug"
@@ -147,17 +157,19 @@ class GeoWeatherPollenSensor(_Base):
             except (ValueError, TypeError):
                 return 0.0
 
-        today_vals = [v for k, v in p.items() if k.endswith("_heute") and v not in (None, "0")]
+        today_vals = [
+            v for k, v in p.items() if k.endswith("_heute") and v not in (None, "0")
+        ]
         return str(max(today_vals, key=_to_num)) if today_vals else "0"
 
     @property
     def extra_state_attributes(self) -> dict:
         p = self._data.get("pollen", {})
         attrs: dict = {
-            "dwd_region":     p.get("dwd_region"),
+            "dwd_region": p.get("dwd_region"),
             "dwd_teilregion": p.get("dwd_teilregion"),
-            "region_id":      p.get("region_id"),
-            "aktualisiert":   self._data.get("last_updated"),
+            "region_id": p.get("region_id"),
+            "aktualisiert": self._data.get("last_updated"),
             ATTR_ATTRIBUTION: ATTRIBUTION,
         }
         for key, val in p.items():
@@ -168,11 +180,13 @@ class GeoWeatherPollenSensor(_Base):
 
 # ── Sensor 4: Regenvorhersage ──────────────────────────────────────────────────
 
+
 class GeoWeatherRainSensor(_Base):
     """Aktuelle Regenintensität und Forecast-Attribute."""
+
     _attr_native_unit_of_measurement = "mm/h"
     _attr_device_class = SensorDeviceClass.PRECIPITATION_INTENSITY
-    _attr_state_class  = SensorStateClass.MEASUREMENT
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator, entry)
@@ -188,20 +202,22 @@ class GeoWeatherRainSensor(_Base):
     def extra_state_attributes(self) -> dict:
         r = self._data.get("regen", {})
         return {
-            "forecast":        r.get("forecast"),
-            "next_start":      r.get("next_start"),
-            "next_end":        r.get("next_end"),
+            "forecast": r.get("forecast"),
+            "next_start": r.get("next_start"),
+            "next_end": r.get("next_end"),
             "next_length_min": r.get("next_length"),
-            "next_max_mmh":    r.get("next_max_mmh"),
-            "next_sum_mm":     r.get("next_sum_mm"),
-            ATTR_ATTRIBUTION:  ATTRIBUTION,
+            "next_max_mmh": r.get("next_max_mmh"),
+            "next_sum_mm": r.get("next_sum_mm"),
+            ATTR_ATTRIBUTION: ATTRIBUTION,
         }
 
 
 # ── Sensor 5: API-Intervall ──────────────────────────────────────────────────
 
+
 class GeoWeatherIntervalSensor(_Base):
     """Zeigt das konfigurierte Auto-Poll-Intervall an."""
+
     _attr_native_unit_of_measurement = "min"
     _attr_icon = "mdi:timer-sync"
 

@@ -261,8 +261,6 @@ styles:
 
 ```
 
-
-
 ## Wetterwarnungen (Status-Icon)
 
 ```yaml
@@ -277,22 +275,15 @@ label: |-
     const anzahl = parseInt(entity.state);
     const warnings = entity.attributes.warnungen;
     if (isNaN(anzahl) || anzahl === 0 || !warnings || warnings.length === 0) return 'Alles ok';
+    // Zeige das Ereignis der ersten Warnung (z.B. Frost)
     return warnings[0].ereignis; 
   ]]]
-icon: mdi:shield-check
+icon: |-
+  [[[
+    const anzahl = parseInt(entity.state);
+    return (anzahl > 0) ? 'mdi:alert-decagram' : 'mdi:shield-check';
+  ]]]
 size: 45%
-state:
-  - operator: template
-    value: |-
-      [[[ 
-        const warnings = entity.attributes.warnungen;
-        return warnings && warnings.length > 0 && parseInt(warnings[0].schwere_level) >= 3;
-      ]]]
-    styles:
-      icon:
-        - animation: blink 2s ease-in-out infinite
-      label:
-        - animation: blink 2s ease-in-out infinite
 styles:
   grid:
     - grid-template-areas: "\"i\" \"l\" \"s\""
@@ -303,11 +294,13 @@ styles:
         [[[ 
           const warnings = entity.attributes.warnungen;
           if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
+          
           const level = parseInt(warnings[0].schwere_level);
-          if (level <= 1) return '#ffeb3b'; // Gelb
-          if (level === 2) return '#fb8c00'; // Orange
-          if (level === 3) return '#e53935'; // Rot
-          if (level >= 4) return '#880e4f';  // Violett
+          // Farbskala basierend auf schwere_level
+          if (level <= 1) return '#ffeb3b'; // Gelb (Minor)
+          if (level === 2) return '#fb8c00'; // Orange (Moderate)
+          if (level === 3) return '#e53935'; // Rot (Severe)
+          if (level >= 4) return '#880e4f';  // Violett (Extreme)
           return 'var(--card-background-color)';
         ]]]
   icon:
@@ -318,9 +311,18 @@ styles:
           const level = parseInt(warnings[0].schwere_level);
           return (level <= 2) ? 'black' : 'white'; 
         ]]]
+    - animation: |-
+        [[[
+          const warnings = entity.attributes.warnungen;
+          return (warnings && warnings.length > 0 && parseInt(warnings[0].schwere_level) >= 2) 
+            ? 'blink 2s ease-in-out infinite' 
+            : 'none';
+        ]]]
   label:
     - font-size: 10px
     - font-weight: bold
+    - justify-self: center
+    - text-wrap: wrap
     - color: |-
         [[[ 
           const warnings = entity.attributes.warnungen;

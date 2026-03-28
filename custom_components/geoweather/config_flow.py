@@ -9,13 +9,13 @@ from .const import (
     CONF_LAT_SENSOR,
     CONF_LON_SENSOR,
     CONF_MIN_SATELLITES,
-    CONF_UPDATE_INTERVAL,
     CONF_SAT_SENSOR,
     CONF_SPEED_SENSOR,
     CONF_SPEED_THRESHOLD,
+    CONF_UPDATE_INTERVAL,
     DEFAULT_MIN_SATELLITES,
-    DEFAULT_UPDATE_INTERVAL,
     DEFAULT_SPEED_THRESHOLD,
+    DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
 
@@ -59,7 +59,7 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     entity_id = user_input.get(key)
                     if entity_id and self.hass.states.get(entity_id) is None:
                         errors[key] = "entity_not_found"
-                
+
                 if not errors:
                     return self.async_create_entry(
                         title="GeoWeather",
@@ -118,21 +118,44 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema({
-                # Pflichtfelder
-                vol.Required(CONF_LAT_SENSOR, default=get_val(CONF_LAT_SENSOR)): _ENTITY_SELECTOR,
-                vol.Required(CONF_LON_SENSOR, default=get_val(CONF_LON_SENSOR)): _ENTITY_SELECTOR,
-                vol.Required(CONF_SPEED_SENSOR, default=get_val(CONF_SPEED_SENSOR)): _ENTITY_SELECTOR,
-                
-                # Optionale Felder (jetzt sicher gegen UUID-Fehler)
-                vol.Optional(CONF_ALT_SENSOR, default=get_val(CONF_ALT_SENSOR)): _ENTITY_SELECTOR,
-                vol.Optional(CONF_SAT_SENSOR, default=get_val(CONF_SAT_SENSOR)): _ENTITY_SELECTOR,
-                
-                # Einstellungen
-                vol.Optional(CONF_SPEED_THRESHOLD, default=merged.get(CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD)): _number(0, 50, 0.5, "km/h"),
-                vol.Optional(CONF_MIN_SATELLITES, default=merged.get(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES)): _number(0, 20, 1, "Sats"),
-                vol.Optional(CONF_UPDATE_INTERVAL, default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)): _number(0, 1440, 5, "Min"),
-            })
+            data_schema=vol.Schema(
+                {
+                    # Pflichtfelder
+                    vol.Required(
+                        CONF_LAT_SENSOR, default=get_val(CONF_LAT_SENSOR)
+                    ): _ENTITY_SELECTOR,
+                    vol.Required(
+                        CONF_LON_SENSOR, default=get_val(CONF_LON_SENSOR)
+                    ): _ENTITY_SELECTOR,
+                    vol.Required(
+                        CONF_SPEED_SENSOR, default=get_val(CONF_SPEED_SENSOR)
+                    ): _ENTITY_SELECTOR,
+                    # Optionale Felder (jetzt sicher gegen UUID-Fehler)
+                    vol.Optional(
+                        CONF_ALT_SENSOR, default=get_val(CONF_ALT_SENSOR)
+                    ): _ENTITY_SELECTOR,
+                    vol.Optional(
+                        CONF_SAT_SENSOR, default=get_val(CONF_SAT_SENSOR)
+                    ): _ENTITY_SELECTOR,
+                    # Einstellungen
+                    vol.Optional(
+                        CONF_SPEED_THRESHOLD,
+                        default=merged.get(
+                            CONF_SPEED_THRESHOLD, DEFAULT_SPEED_THRESHOLD
+                        ),
+                    ): _number(0, 50, 0.5, "km/h"),
+                    vol.Optional(
+                        CONF_MIN_SATELLITES,
+                        default=merged.get(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES),
+                    ): _number(0, 20, 1, "Sats"),
+                    vol.Optional(
+                        CONF_UPDATE_INTERVAL,
+                        default=merged.get(
+                            CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
+                        ),
+                    ): _number(0, 1440, 5, "Min"),
+                }
+            ),
         )
 
         return self.async_show_form(step_id="init", data_schema=data_schema)

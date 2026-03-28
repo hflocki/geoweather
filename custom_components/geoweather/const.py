@@ -14,14 +14,13 @@ CONF_UPDATE_INTERVAL = "update_interval"
 # ── Defaults ─────────────────────────────────────────────────────────────────
 DEFAULT_SPEED_THRESHOLD = 5.0  # km/h  – above this = moving
 DEFAULT_MIN_SATELLITES = 4  # below this = bad GPS fix
-DEFAULT_UPDATE_INTERVAL = 0   # 0 = nur manuell via Service
+DEFAULT_UPDATE_INTERVAL = 0  # 0 = nur manuell via Service
 
 # ── Service name ─────────────────────────────────────────────────────────────
 SERVICE_UPDATE = "update"  # called as geoweather.update
 
 # ── DWD API endpoints ────────────────────────────────────────────────────────
-# Die Reihenfolge {lon} vor {lat} ist wichtig
-
+# Statische Gemeindegrenzen (für den Standort-Namen)
 URL_DWD_WARNCELL = (
     "https://maps.dwd.de/geoserver/dwd/ows"
     "?service=WFS&version=2.0.0&request=GetFeature"
@@ -30,8 +29,8 @@ URL_DWD_WARNCELL = (
     "&bbox={south},{west},{north},{east},urn:ogc:def:crs:EPSG::4326"
 )
 
-# Diese URL braucht south, west, north, east (bbox)
-URL_DWD_WARNINGS = (
+# 1. Nur Gemeinde-Warnungen
+URL_DWD_WARNINGS_GEMEINDE = (
     "https://maps.dwd.de/geoserver/dwd/ows"
     "?service=WFS&version=2.0.0&request=GetFeature"
     "&typeNames=dwd:Warnungen_Gemeinden"
@@ -39,9 +38,20 @@ URL_DWD_WARNINGS = (
     "&bbox={south},{west},{north},{east},urn:ogc:def:crs:EPSG::4326"
 )
 
+# 2. Nur Kreis-Warnungen (vereinigt)
+URL_DWD_WARNINGS_KREIS = (
+    "https://maps.dwd.de/geoserver/dwd/ows"
+    "?service=WFS&version=2.0.0&request=GetFeature"
+    "&typeNames=dwd:Warnungen_Gemeinden_vereinigt"
+    "&outputFormat=application/json"
+    "&bbox={south},{west},{north},{east},urn:ogc:def:crs:EPSG::4326"
+)
+
 URL_DWD_POLLEN = "https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json"
 
-URL_DWD_RADAR = "https://opendata.dwd.de/weather/radar/composite/rv/DE1200_RV_LATEST.tar.bz2"
+URL_DWD_RADAR = (
+    "https://opendata.dwd.de/weather/radar/composite/rv/DE1200_RV_LATEST.tar.bz2"
+)
 
 
 # ── DWD lookup tables ────────────────────────────────────────────────────────
