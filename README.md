@@ -357,21 +357,24 @@ content: |
 type: custom:mushroom-template-card
 entity: sensor.geoweather_regenvorhersage
 icon: mdi:weather-rainy
-icon_color: |-
-  {% if states(entity) | float(0) > 0 %} blue {% else %} grey {% endif %}
-primary: |2-
+icon_color: "{% if states(entity) | float(0) > 0 %} blue {% else %} grey {% endif %}"
+primary: |-
   {% set next_start = state_attr(entity, 'next_start') %}
   {% set next_end = state_attr(entity, 'next_end') %}
-  {% set next_length = state_attr(entity, 'next_length_min') %}
+  {% set next_length = state_attr(entity, 'next_length_min') | int(0) %}
+  
   {% if next_start is not none %}
     {% set start_ts = next_start | as_timestamp(0) %}
     {% set now_ts = now() | as_timestamp %}
+    
     {% if (start_ts > now_ts) %}
-      In {{ ((start_ts - now_ts) / 60) | int }} Min. Regen für {{ next_length }} Min.
-    {% elif (next_end is not none) %}
+      {# Fallback falls length 0 ist, aber start existiert #}
+      {% set display_length = next_length if next_length > 0 else 5 %}
+      In {{ ((start_ts - now_ts) / 60) | int }} Min. Regen für {{ display_length }} Min.
+    {% elif (next_end is not none and as_timestamp(next_end) > now_ts) %}
       Regen noch für {{ ((as_timestamp(next_end) - now_ts) / 60) | int }} Min.
     {% else %}
-      Aktuell Dauerregen.
+      Aktuell Regen / Schauer.
     {% endif %}
   {% else %}
     Kein Regen in Sicht.
@@ -379,8 +382,9 @@ primary: |2-
 card_mod:
   style: |
     ha-card {
-      background-image: linear-gradient(90deg{% set forecast = state_attr(config.entity, 'forecast') %}{% if forecast %}{% set duration = forecast.keys() | last | as_timestamp - now() | as_timestamp %}{% for x, y in forecast.items() %}{% set pos = ((x | as_timestamp - now() | as_timestamp)/duration*100) | round %}{% set alpha = 0.5 if y > 0 else 0 %}{% if pos >= 0 %}, hsla(200, 100%, 50%, {{alpha}}) {{pos}}%{% endif %}{% endfor %}{% endif %});
+      background-image: linear-gradient(90deg{% set forecast = state_attr(config.entity, 'forecast') %}{% if forecast %}{% set items = forecast.items() | list %}{% set first = items | first %}{% set last = items | last %}{% set duration = last[0] | as_timestamp - now() | as_timestamp %}{% for x, y in items %}{% set pos = ((x | as_timestamp - now() | as_timestamp)/duration*100) | round %}{% set alpha = 0.5 if y > 0 else 0 %}{% if pos >= 0 %}, hsla(200, 100%, 50%, {{alpha}}) {{pos}}%{% endif %}{% endfor %}{% endif %});
     }
+
 ```
 
 ## Detaillierte Pollen-Übersicht (Grid)
