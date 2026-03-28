@@ -184,27 +184,35 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         return res
 
     async def _fetch_location(self, session, lat, lon) -> dict:
-        """WarnCell ermitteln über cql_filter mit Cache-Buster."""
+        """WarnCell ermitteln über BBOX-Verfahren (stabilste Methode)."""
         import time
         t = int(time.time())
         
-        # Wir füllen lon und lat in die neue Filter-Struktur
-        url = URL_DWD_WARNCELL.format(lon=lon, lat=lat) + f"&_={t}"
+        # Wir erstellen eine winzige Box um deine GPS-Position (+/- 0.005 Grad)
+        # Das entspricht etwa einem 500m Radius - perfekt für Gemeinden
+        south, north = lat - 0.005, lat + 0.005
+        west, east = lon - 0.005, lon + 0.005
+        
+        # Wir füllen die BBOX-Parameter in die URL
+        url = URL_DWD_WARNCELL.format(
+            south=south, west=west, north=north, east=east
+        ) + f"&_={t}"
         
         async with session.get(url) as resp:
             if resp.status != 200:
-                _LOGGER.error("DWD Fehler: Status %s", resp.status)
-                return {"gemeinde": "Fehler", "kreis": "Unbekannt"}
+                _LOGGER.error("DWD Standort-Server Fehler: %s", resp.status)
+                return {"gemeinde": "DWD Fehler", "kreis": "Unbekannt"}
             
             try:
                 data = await resp.json(content_type=None)
             except Exception:
-                # Falls der DWD-Server doch mal Müll schickt
                 return {"gemeinde": "Datenfehler", "kreis": "Unbekannt"}
 
         if not data.get("features"):
+            _LOGGER.warning("Kein Standort für Box %s/%s gefunden", lat, lon)
             return {"gemeinde": "Unbekannt", "kreis": "Unbekannt", "warncellid": None}
             
+        # Wir nehmen das erste gefundene Feature
         p = data["features"][0]["properties"]
         return {
             "gemeinde": p.get("NAME"), 
