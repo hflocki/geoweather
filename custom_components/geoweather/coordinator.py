@@ -108,10 +108,10 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         return {
             "location": location,
-            "radar": regen,     # Wir weisen 'regen' dem Key 'radar' zu
+            "radar": regen,
             "warnings": warnings,
             "pollen": pollen,
-            "regen": regen,     # Und behalten 'regen' für die neue sensor.py bei
+            "regen": regen,
             "gps": {
                 "latitude": lat,
                 "longitude": lon,
@@ -131,7 +131,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         south, north = lat - 0.005, lat + 0.005
         west, east = lon - 0.005, lon + 0.005
 
-        # Liste der URLs, die wir abfragen wollen
         urls = [
             URL_DWD_WARNINGS_GEMEINDE.format(
                 south=south, west=west, north=north, east=east
@@ -159,7 +158,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         for feat in all_features:
             p = feat.get("properties", {})
-            # ID aus Event und Headline, um Doppelte (aus beiden Layern) zu vermeiden
             unique_id = f"{p.get('EVENT')}_{p.get('HEADLINE')}"
             if unique_id in seen_ids:
                 continue
@@ -206,7 +204,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         def _process():
             r = DWDRadar()
             r.load_from_bytes(self._radar_bytes)
-            # Hier kommt jetzt das Ergebnis mit der neuen Logik (length ist schon int)
             res_data = r.get_next_precipitation(lat, lon)
 
             return {
@@ -221,18 +218,24 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         return await self.hass.async_add_executor_job(_process)
 
-    async def _fetch_pollen(self, session, kreis: str) -> dict:
-        """Pollendaten abrufen - Schlanke Version ohne Altlasten."""
-        search_term = self._pollen_mapping.get(kreis, kreis)
+    async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
+        """Pollendaten abrufen - Mit verbessertem Mapping für Regionen."""
+        try:
+            async with session.get(URL_DWD_POLLEN) as resp:
+                if resp.status != 200:
+                    _LOGGER.error("Pollen-Server Fehler: %s", resp.status)
+                    return {"dwd_teilregion": "Server-Fehler"}
+                data = await resp.json(content_type=None)
+        except Exception as e:
+            _LOGGER.error("Pollen-Abruf fehlgeschlagen: %s", e)
+            return {"dwd_teilregion": "Abruffehler"}
 
-        # Daten abrufen
-        async with session.get(URL_DWD_POLLEN) as resp:
-            data = await resp.json(content_type=None)
+        search_term = self._pollen_mapping.get(kreis, kreis).lower()
+        clean_search = search_term.replace("kreis", "").replace("landkreis", "").strip()
 
         res = {"dwd_teilregion": "Unbekannt"}
 
         def _clean(text):
-            """ä->ae, ß->ss für sicheren Vergleich."""
             return (
                 str(text)
                 .lower()
@@ -243,7 +246,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             )
 
         def _convert(val):
-            """'1-2' -> 1.5 etc."""
             if val is None or val in ["-1", "0", 0]:
                 return 0.0
             v = str(val)
@@ -258,31 +260,36 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             except:
                 return 0.0
 
-        # Region suchen und Pollen zuordnen
+        found_entry = None
         for entry in data.get("content", []):
-            r_name = str(entry.get("region_name") or "")
-            pr_name = str(entry.get("partregion_name") or "")
+            r_name = _clean(entry.get("region_name") or "")
+            pr_name = _clean(entry.get("partregion_name") or "")
 
-            if (
-                search_term.lower() in r_name.lower()
-                or search_term.lower() in pr_name.lower()
-            ):
-                res["dwd_teilregion"] = pr_name or r_name
-                pdata = entry.get("Pollen") or entry.get("pollen") or {}
-
-                for p_type in POLLEN_TYPES:
-                    p_heute, p_morgen = 0.0, 0.0
-                    clean_type = _clean(p_type)
-
-                    for dwd_key, dwd_content in pdata.items():
-                        if clean_type in _clean(dwd_key):
-                            p_heute = _convert(dwd_content.get("today"))
-                            p_morgen = _convert(dwd_content.get("tomorrow"))
-                            break
-
-                    res[f"{p_type.lower()}_heute"] = p_heute
-                    res[f"{p_type.lower()}_morgen"] = p_morgen
+            if _clean(clean_search) in r_name or _clean(clean_search) in pr_name:
+                found_entry = entry
                 break
+
+        if found_entry:
+            res["dwd_teilregion"] = found_entry.get(
+                "partregion_name"
+            ) or found_entry.get("region_name")
+            pdata = found_entry.get("Pollen") or found_entry.get("pollen") or {}
+
+            for p_type, p_name in POLLEN_TYPES:
+                p_heute, p_morgen = 0.0, 0.0
+                clean_type = _clean(p_type)
+
+                for dwd_key, dwd_content in pdata.items():
+                    if clean_type in _clean(dwd_key):
+                        p_heute = _convert(dwd_content.get("today"))
+                        p_morgen = _convert(dwd_content.get("tomorrow"))
+                        break
+
+                res[f"pollen_{p_type.lower()}_heute"] = p_heute
+                res[f"pollen_{p_type.lower()}_morgen"] = p_morgen
+                res[f"{p_type.lower()}_heute"] = p_heute
+        else:
+            _LOGGER.warning("Keine Pollen-Region für '%s' gefunden", kreis)
 
         return res
 
@@ -291,13 +298,9 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         import time
 
         t = int(time.time())
-
-        # Wir erstellen eine winzige Box um deine GPS-Position (+/- 0.005 Grad)
-        # Das entspricht etwa einem 500m Radius - perfekt für Gemeinden
         south, north = lat - 0.005, lat + 0.005
         west, east = lon - 0.005, lon + 0.005
 
-        # Wir füllen die BBOX-Parameter in die URL
         url = (
             URL_DWD_WARNCELL.format(south=south, west=west, north=north, east=east)
             + f"&_={t}"
@@ -317,13 +320,12 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Kein Standort für Box %s/%s gefunden", lat, lon)
             return {"gemeinde": "Unbekannt", "kreis": "Unbekannt", "warncellid": None}
 
-        # Wir nehmen das erste gefundene Feature
         p = data["features"][0]["properties"]
         return {
             "gemeinde": p.get("NAME"),
             "kreis": p.get("KREIS"),
             "warncellid": p.get("WARNCELLID"),
-            "warn_region_name": p.get("KREIS"), # Oder ggf p.get("REGION")
+            "warn_region_name": p.get("KREIS"),
         }
 
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
