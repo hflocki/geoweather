@@ -27,7 +27,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         state_class=SensorStateClass.MEASUREMENT, icon="mdi:weather-pouring"
     )))
     entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="regenvorhersage", name="Regenvorhersage",
+        key="regenvorhersage", name="Regenvorhersage", icon="mdi:weather-clock",
         device_class=SensorDeviceClass.TIMESTAMP, icon="mdi:weather-clock"
     )))
 
@@ -77,16 +77,25 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
         if not data: return None
         key = self.entity_description.key
 
-        # 1. Radar & Regen (Wichtig: 'regen' Key nutzen!)
-        radar = data.get("radar", {})
+        # 1. Radar & Regen
         regen = data.get("regen", {})
         if key == "niederschlag_aktuell": return regen.get("aktuell", 0.0)
-        if key == "regenvorhersage": return regen.get("next_start")
+        
+        if key == "regenvorhersage": 
+            val = regen.get("next_start")
+            # Falls kein Regen kommt, geben wir einen Text zurück, damit das Icon bleibt
+            return val if val is not None else "Kein Regen"
 
-        # 2. Standort & Warnungen (Wichtig: 'gemeinde' Key nutzen!)
+        # 2. Standort & Warnungen
         loc = data.get("location", {})
         if key == "standort": return loc.get("gemeinde") or loc.get("kreis") or "Unbekannt"
-        if key == "warnungen_anzahl": return data.get("warnings", {}).get("anzahl", 0)
+        
+        # HIER DER FIX FÜR DIE WARNREGION:
+        if key == "warn_region": 
+            return loc.get("warn_region_name") or loc.get("kreis") or "Unbekannt"
+            
+        if key == "warnungen_anzahl": 
+            return data.get("warnings", {}).get("anzahl", 0)
 
         # 3. Pollen
         pollen = data.get("pollen", {})
@@ -97,7 +106,7 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
             p_key = key.replace("pollen_", "")
             return pollen.get(f"{p_key}_heute", 0.0)
 
-        # 4. Technik (ISO-String in datetime umwandeln)
+        # 4. Technik
         if key == "letztes_update":
             val = data.get("last_updated")
             return datetime.fromisoformat(val) if val else None
