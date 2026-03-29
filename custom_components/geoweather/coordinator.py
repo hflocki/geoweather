@@ -52,6 +52,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._pollen_mapping: dict = {}
         self._radar_etag: str | None = None
         self._radar_bytes: bytes | None = None
+        self.last_update_success_time = None
 
     async def async_load_pollen_mapping(self):
         """Lädt Pollen-Mapping Datei."""
@@ -107,6 +108,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         return {
             "location": location,
+            "radar": radar_results,
             "warnings": warnings,
             "pollen": pollen,
             "regen": regen,
