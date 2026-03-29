@@ -323,6 +323,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             "gemeinde": p.get("NAME"),
             "kreis": p.get("KREIS"),
             "warncellid": p.get("WARNCELLID"),
+            "warn_region_name": p.get("KREIS"), # Oder ggf p.get("REGION")
         }
 
     async def async_service_update(self, call: ServiceCall | None = None) -> None:
