@@ -27,8 +27,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         state_class=SensorStateClass.MEASUREMENT, icon="mdi:weather-pouring"
     )))
     entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="regenvorhersage", name="Regenvorhersage", icon="mdi:weather-clock",
-        device_class=SensorDeviceClass.TIMESTAMP, icon="mdi:weather-clock"
+        key="regenvorhersage", name="Regenvorhersage", icon="mdi:weather-clock"
     )))
 
     # 2. Standort & Warnungen
