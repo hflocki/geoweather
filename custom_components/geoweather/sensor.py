@@ -53,6 +53,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
         device_class=SensorDeviceClass.TIMESTAMP, icon="mdi:update"
     )))
 
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="warn_region", name="DWD Warnregion", icon="mdi:map-check"
+    )))
+
     async_add_entities(entities)
 
 class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
