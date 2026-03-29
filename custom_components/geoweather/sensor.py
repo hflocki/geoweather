@@ -1,244 +1,185 @@
-"""Sensors for GeoWeather – Location, Warnings, Pollen, Rain, API-Interval."""
-
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
+    SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_ATTRIBUTION
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
-from .coordinator import GeoWeatherCoordinator
+from .const import DOMAIN
 
-ATTRIBUTION = "Daten bereitgestellt vom Deutschen Wetterdienst (DWD)"
+# Pollenarten für die dynamische Erstellung
+POLLEN_TYPES = [
+    ("birke", "Pollen Birke"),
+    ("graeser", "Pollen Gräser"),
+    ("roggen", "Pollen Roggen"),
+    ("erle", "Pollen Erle"),
+    ("hasel", "Pollen Hasel"),
+    ("esche", "Pollen Esche"),
+    ("beifuss", "Pollen Beifuß"),
+    ("ambrosia", "Pollen Ambrosia"),
+    ("eiche", "Pollen Eiche"),
+]
 
 
-async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> None:
-    """Set up the sensor platform."""
-    coordinator: GeoWeatherCoordinator = hass.data[DOMAIN][entry.entry_id]
+async def async_setup_entry(hass, entry, async_add_entities):
+    """Setzt alle GeoWeather Sensoren auf einmal auf."""
+    coordinator = entry.runtime_data
+    entities = []
 
-    async_add_entities(
-        [
-            GeoWeatherLocationSensor(coordinator, entry),
-            GeoWeatherWarnungsSensor(coordinator, entry),
-            GeoWeatherPollenSensor(coordinator, entry),
-            GeoWeatherRainSensor(coordinator, entry),
-            GeoWeatherIntervalSensor(coordinator, entry),
-        ]
+    # 1. Regen-Sensoren
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="niederschlag_aktuell",
+                name="Niederschlag aktuell",
+                native_unit_of_measurement="mm/h",
+                device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
+                state_class=SensorStateClass.MEASUREMENT,
+                icon="mdi:weather-pouring",
+            ),
+        )
+    )
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="regenvorhersage",
+                name="Regenvorhersage",
+                device_class=SensorDeviceClass.TIMESTAMP,
+                icon="mdi:weather-clock",
+            ),
+        )
     )
 
+    # 2. Standort & Warnungen
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="standort", name="Aktueller Standort", icon="mdi:map-marker-radius"
+            ),
+        )
+    )
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="warnungen_anzahl",
+                name="Wetterwarnungen",
+                icon="mdi:alert-decagram",
+            ),
+        )
+    )
 
-class _Base(CoordinatorEntity, SensorEntity):
-    """Base class for GeoWeather sensors."""
-
-    _attr_has_entity_name = True
-
-    def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
-        self._entry = entry
-
-    def _cfg(self, key, default=None):
-        """Hilfsfunktion für Konfigurationswerte."""
-        return {**self._entry.data, **self._entry.options}.get(key, default)
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._entry.entry_id)},
-            name="GeoWeather",
-            manufacturer="DWD / hflocki",
-            model="GeoWeather Integration",
-            entry_type="service",
+    # 3. Pollen-Sensoren (General + Einzeln)
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="pollen_gesamt", name="Pollenbelastung Gesamt", icon="mdi:flower"
+            ),
+        )
+    )
+    for key, name in POLLEN_TYPES:
+        entities.append(
+            GeoWeatherSensor(
+                coordinator,
+                entry,
+                SensorEntityDescription(
+                    key=f"pollen_{key}", name=name, icon="mdi:sprout"
+                ),
+            )
         )
 
-    @property
-    def _data(self) -> dict:
-        """Gibt immer ein Dictionary zurück, auch wenn der Coordinator noch leer ist."""
-        return self.coordinator.data or {}
-
-    @property
-    def _gps(self) -> dict:
-        """Hilfszugriff auf GPS-Daten."""
-        return self._data.get("gps", {})
+    async_add_entities(entities)
 
 
-# ── Sensor 1: Standort ────────────────────────────────────────────────────────
+class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
+    """Repräsentiert einen GeoWeather Sensor."""
 
+    def __init__(self, coordinator, entry, description):
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._entry = entry
 
-class GeoWeatherLocationSensor(_Base):
-    """Zeigt den aktuellen Warnzell-Namen an."""
+        # Eindeutige ID und Name mit Präfix
+        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_name = f"GeoWeather {description.name}"
 
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry)
-        self._attr_name = "Standort"
-        self._attr_unique_id = f"{entry.entry_id}_location"
-        self._attr_icon = "mdi:map-marker-radius"
+        # Zuordnung zum gleichen Gerät
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": "GeoWeather",
+            "manufacturer": "GeoWeather",
+            "model": "Camper Weather Terminal",
+        }
 
     @property
     def native_value(self):
-        """Gibt die Gemeinde zurück (sicher via _data)."""
-        return self._data.get("location", {}).get("gemeinde", "Warten...")
+        """Bestimmt den Status basierend auf dem Key."""
+        data = self.coordinator.data
+        key = self.entity_description.key
+
+        # Regen-Logik
+        radar = data.get("radar", {})
+        if key == "niederschlag_aktuell":
+            return radar.get("aktuell", 0.0)
+        if key == "regenvorhersage":
+            return radar.get("next_start")
+
+        # Standort & Warnungen
+        if key == "standort":
+            return data.get("location", {}).get("name", "Unbekannt")
+        if key == "warnungen_anzahl":
+            return len(data.get("warnings", []))
+
+        # Pollen-Logik
+        pollen = data.get("pollen", {})
+        if key == "pollen_gesamt":
+            # Höchsten Wert aller 'heute' Pollen finden
+            vals = [
+                v
+                for k, v in pollen.items()
+                if "_heute" in k and isinstance(v, (int, float))
+            ]
+            return max(vals) if vals else 0.0
+
+        if key.startswith("pollen_"):
+            p_key = key.replace("pollen_", "")
+            return pollen.get(f"{p_key}_heute", 0.0)
+
+        return None
 
     @property
-    def extra_state_attributes(self) -> dict:
-        loc = self._data.get("location", {})
-        return {
-            "kreis": loc.get("kreis"),
-            "bundesland": loc.get("bundesland"),
-            "warncellid": loc.get("warncellid"),
-            "latitude": self._gps.get("latitude"),
-            "longitude": self._gps.get("longitude"),
-            "hoehe_m": self._gps.get("altitude_m"),
-            "satelliten": self._gps.get("satellites"),
-            "aktualisiert": self._data.get("last_updated"),
-            ATTR_ATTRIBUTION: ATTRIBUTION,
-        }
+    def extra_state_attributes(self):
+        """Fügt hilfreiche Attribute hinzu."""
+        data = self.coordinator.data
+        key = self.entity_description.key
 
+        if key == "niederschlag_aktuell":
+            return {"forecast": data.get("radar", {}).get("forecast", {})}
 
-# ── Sensor 2: Warnungen ───────────────────────────────────────────────────────
+        if key == "regenvorhersage":
+            radar = data.get("radar", {})
+            return {
+                "next_end": radar.get("next_end"),
+                "next_length": radar.get("next_length"),
+                "next_max": radar.get("next_max_mmh"),
+                "next_sum": radar.get("next_sum_mm"),
+            }
 
+        if key == "warnungen_anzahl":
+            return {"aktive_warnungen": data.get("warnings", [])}
 
-class GeoWeatherWarnungsSensor(_Base):
-    """Anzahl der aktiven Wetterwarnungen."""
-
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_icon = "mdi:alert-rhombus"
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry)
-        self._attr_name = "Warnungen"
-        self._attr_unique_id = f"{entry.entry_id}_warnings"
-
-    @property
-    def native_value(self) -> int:
-        return self._data.get("warnings", {}).get("anzahl", 0) or 0
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        warn = self._data.get("warnings", {})
-        return {
-            "hoechste_schwere": warn.get("hoechste_schwere"),
-            "warnungen": warn.get("warnungen", []),
-            "latitude": self._gps.get("latitude"),
-            "longitude": self._gps.get("longitude"),
-            "aktualisiert": self._data.get("last_updated"),
-            ATTR_ATTRIBUTION: ATTRIBUTION,
-        }
-
-
-# ── Sensor 3: Pollenflug ──────────────────────────────────────────────────────
-
-
-class GeoWeatherPollenSensor(_Base):
-    """Gibt den höchsten Belastungswert für heute aus."""
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry)
-        self._attr_name = "Pollenflug"
-        self._attr_unique_id = f"{entry.entry_id}_pollen"
-        self._attr_icon = "mdi:flower-pollen"
-
-    @property
-    def native_value(self) -> str:
-        p = self._data.get("pollen", {})
-        if p.get("status") and p["status"] != "OK":
-            return p["status"]
-
-        def _to_num(v):
-            try:
-                s = str(v).strip()
-                return float(s.split("-")[-1]) if "-" in s else float(s)
-            except (ValueError, TypeError):
-                return 0.0
-
-        today_vals = [
-            v for k, v in p.items() if k.endswith("_heute") and v not in (None, "0")
-        ]
-        return str(max(today_vals, key=_to_num)) if today_vals else "0"
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        p = self._data.get("pollen", {})
-        attrs: dict = {
-            "dwd_region": p.get("dwd_region"),
-            "dwd_teilregion": p.get("dwd_teilregion"),
-            "region_id": p.get("region_id"),
-            "aktualisiert": self._data.get("last_updated"),
-            ATTR_ATTRIBUTION: ATTRIBUTION,
-        }
-        for key, val in p.items():
-            if any(key.endswith(s) for s in ("_heute", "_morgen", "_uebermorgen")):
-                attrs[key] = val
-        return attrs
-
-
-# ── Sensor 4: Regenvorhersage ──────────────────────────────────────────────────
-
-
-class GeoWeatherRainSensor(_Base):
-    """Aktuelle Regenintensität und Forecast-Attribute."""
-
-    _attr_native_unit_of_measurement = "mm/h"
-    _attr_device_class = SensorDeviceClass.PRECIPITATION_INTENSITY
-    _attr_state_class = SensorStateClass.MEASUREMENT
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry)
-        self._attr_name = "Regenvorhersage"
-        self._attr_unique_id = f"{entry.entry_id}_rain"
-        self._attr_icon = "mdi:weather-pouring"
-
-    @property
-    def native_value(self) -> float:
-        return self._data.get("regen", {}).get("aktuell", 0.0)
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        r = self._data.get("regen", {})
-        return {
-            "forecast": r.get("forecast"),
-            "next_start": r.get("next_start"),
-            "next_end": r.get("next_end"),
-            "next_length_min": r.get("next_length"),
-            "next_max_mmh": r.get("next_max_mmh"),
-            "next_sum_mm": r.get("next_sum_mm"),
-            ATTR_ATTRIBUTION: ATTRIBUTION,
-        }
-
-
-# ── Sensor 5: API-Intervall ──────────────────────────────────────────────────
-
-
-class GeoWeatherIntervalSensor(_Base):
-    """Zeigt das konfigurierte Auto-Poll-Intervall an."""
-
-    _attr_native_unit_of_measurement = "min"
-    _attr_icon = "mdi:timer-sync"
-
-    def __init__(self, coordinator, entry):
-        super().__init__(coordinator, entry)
-        self._attr_name = "API Call Intervall"
-        self._attr_unique_id = f"{entry.entry_id}_interval"
-
-    @property
-    def native_value(self):
-        """Gibt das Intervall als Zahl zurück (Pflicht bei Einheit 'min')."""
-        val = self._cfg(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
-        try:
-            return int(val)
-        except (ValueError, TypeError):
-            return 0
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        val = self.native_value
-        return {
-            "modus": "Automatisch" if val > 0 else "Manuell (nur Service/Button)",
-            ATTR_ATTRIBUTION: ATTRIBUTION,
-        }
+        return None
