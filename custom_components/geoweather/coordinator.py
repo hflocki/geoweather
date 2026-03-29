@@ -108,10 +108,10 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         return {
             "location": location,
-            "radar": radar_results,
+            "radar": regen,     # Wir weisen 'regen' dem Key 'radar' zu
             "warnings": warnings,
             "pollen": pollen,
-            "regen": regen,
+            "regen": regen,     # Und behalten 'regen' für die neue sensor.py bei
             "gps": {
                 "latitude": lat,
                 "longitude": lon,
