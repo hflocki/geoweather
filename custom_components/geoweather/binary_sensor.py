@@ -47,12 +47,15 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.MOVING
     _attr_should_poll = False  # Echtzeit via State-Change-Event
     _attr_has_entity_name = True
-    _attr_name = "Moving"  # Hier wieder auf Moving gestellt
+
+    # Wird in HA zu "GeoWeather Moving"
+    _attr_name = "Moving"
 
     def __init__(self, coordinator: GeoWeatherCoordinator, entry: ConfigEntry) -> None:
         self._coordinator = coordinator
         self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_moving"
+        self._attr_unique_id = f"{entry.entry_id}_geoweather_moving"
+        self.entity_id = f"binary_sensor.geoweather_moving"
 
     async def async_added_to_hass(self) -> None:
         """Abonniere den Speed-Sensor für sofortige Echtzeit-Updates."""
