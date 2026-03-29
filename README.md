@@ -152,6 +152,8 @@ action:
   - action: geoweather.update
     data: {}
 mode: skip
+
+```
 ---
 
 ## Update nach Ankunft (Stabilisierungs-Sperre)
@@ -176,6 +178,7 @@ action:
   - action: geoweather.update
     data: {}
 mode: restart
+
 ```
 
 ## Beispiel Dashboard Kacheln
