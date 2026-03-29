@@ -28,7 +28,7 @@ POLLEN_TYPES = [
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Setzt alle GeoWeather Sensoren auf einmal auf."""
-    coordinator = entry.runtime_data
+    coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
     # 1. Regen-Sensoren
