@@ -151,7 +151,7 @@ condition:
 action:
   - action: geoweather.update
     data: {}
-mode: single
+mode: skip
 ---
 
 ## Update nach Ankunft (Stabilisierungs-Sperre)
@@ -205,50 +205,58 @@ name: Pollenflug
 show_state: true
 state_display: |
   [[[
-    const v = parseFloat(entity.state);
-    if (isNaN(v) || v === 0) return 'Keine';
-    if (v <= 0.5) return 'Keine-Gering';
-    if (v <= 1.0) return 'Gering';
-    if (v <= 1.5) return 'Gering-Mittel';
-    if (v <= 2.0) return 'Mittel';
-    if (v <= 2.5) return 'Mittel-Hoch';
-    return 'Stark';
-  ]]]
+  const v = parseFloat(entity.state);
+  if (v <= 0.5) return 'Keine/Gering';
+  if (v <= 1.0) return 'Gering';
+  if (v <= 1.5) return 'Gering-Mittel';
+  if (v <= 2.0) return 'Mittel';
+  if (v <= 2.5) return 'Mittel-Hoch';
+  if (v >= 3.0) return 'Stark';
+  return v;
+]]]
 styles:
   card:
     - padding: 5px
     - background-color: |
         [[[
-          const v = parseFloat(entity.state);
-          if (isNaN(v) || v <= 0) return 'var(--card-background-color)';
-          if (v <= 1.5) return '#ffeb3b'; // Gelb
-          if (v <= 2.5) return '#fb8c00'; // Orange
-          return '#e53935';               // Rot
+          const s = entity.state;
+          if (!s || s === 'unknown' || s === 'unavailable' || s === '0') 
+            return 'var(--card-background-color)';
+          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          if (val === 1) return '#ffeb3b'; // Gelb
+          if (val === 2) return '#fb8c00'; // Orange
+          if (val >= 3) return '#e53935';  // Rot
+          return 'var(--card-background-color)';
         ]]]
   icon:
     - color: |
         [[[
-          const v = parseFloat(entity.state);
-          if (isNaN(v) || v <= 0) return '#c5e566';
-          return (v <= 2.5) ? 'black' : 'white';
+          const s = entity.state;
+          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') return '#c5e566';
+          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          return (val === 1 || val === 2) ? 'black' : 'white';
         ]]]
   name:
     - font-weight: bold
     - font-size: 12px
     - color: |
         [[[
-          const v = parseFloat(entity.state);
-          if (isNaN(v) || v <= 0) return 'var(--primary-text-color)';
-          return (v <= 2.5) ? 'black' : 'white';
+          const s = entity.state;
+          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') 
+            return 'var(--primary-text-color)';
+          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          return (val === 1 || val === 2) ? 'black' : 'white';
         ]]]
   state:
     - font-size: 11px
     - font-weight: bold
     - color: |
         [[[
-          const v = parseFloat(entity.state);
-          if (isNaN(v) || v <= 0) return 'var(--primary-text-color)';
-          return (v <= 2.5) ? 'black' : 'white';
+          const s = entity.state;
+          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') 
+            return 'var(--primary-text-color)';
+          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
+          return (val === 1 || val === 2) ? 'black' : 'white';
         ]]]
 
 ```
@@ -377,6 +385,51 @@ card_mod:
       background-image: linear-gradient(90deg{% set forecast = state_attr(config.entity, 'forecast') %}{% if forecast %}{% set items = forecast.items() | list %}{% set first = items | first %}{% set last = items | last %}{% set duration = last[0] | as_timestamp - now() | as_timestamp %}{% for x, y in items %}{% set pos = ((x | as_timestamp - now() | as_timestamp)/duration*100) | round %}{% set alpha = 0.5 if y > 0 else 0 %}{% if pos >= 0 %}, hsla(200, 100%, 50%, {{alpha}}) {{pos}}%{% endif %}{% endfor %}{% endif %});
     }
 
+```
+
+## Visualisierung der Regenvorhersage (2h Nowcasting)
+Für die Darstellung müssen folgende Frontend-Erweiterungen über HACS installiert sein: `ApexCharts Card`
+
+```yaml
+type: custom:apexcharts-card
+header:
+  show: true
+  title: Regenvorhersage (Nächste 2 Stunden)
+  show_states: true
+  colorize_states: true
+graph_span: 2h
+span:
+  start: minute
+apex_config:
+  chart:
+    height: 200px
+  fill:
+    type: gradient
+    gradient:
+      shadeIntensity: 1
+      opacityFrom: 0.7
+      opacityTo: 0.2
+      stops: [0, 90, 100]
+  yaxis:
+    decimalsInFloat: 1
+    labels:
+      style:
+        colors: 'var(--secondary-text-color)'
+series:
+  - entity: sensor.geoweather_regenvorhersage
+    name: Intensität
+    unit: mm/h
+    data_generator: |
+      const forecast = entity.attributes.forecast;
+      if (!forecast) return [];
+      return Object.entries(forecast).map(([time, value]) => {
+        return [new Date(time).getTime(), value];
+      });
+    type: area
+    color: '#03a9f4'
+    curve: smooth
+    stroke_width: 2
+    fill_raw: 'null'
 ```
 
 ## Detaillierte Pollen-Übersicht (Grid)
