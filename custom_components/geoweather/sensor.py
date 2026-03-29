@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -9,10 +7,9 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
 from .const import DOMAIN
 
-# Pollenarten für die dynamische Erstellung
+# Definition der Pollenarten für die dynamische Erstellung
 POLLEN_TYPES = [
     ("birke", "Pollen Birke"),
     ("graeser", "Pollen Gräser"),
@@ -25,85 +22,67 @@ POLLEN_TYPES = [
     ("eiche", "Pollen Eiche"),
 ]
 
-
 async def async_setup_entry(hass, entry, async_add_entities):
     """Setzt alle GeoWeather Sensoren auf einmal auf."""
+    # Den Coordinator über die DOMAIN und Entry-ID abrufen (kompatibel mit älteren HA Versionen)
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
-    # 1. Regen-Sensoren
-    entities.append(
-        GeoWeatherSensor(
-            coordinator,
-            entry,
-            SensorEntityDescription(
-                key="niederschlag_aktuell",
-                name="Niederschlag aktuell",
-                native_unit_of_measurement="mm/h",
-                device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
-                state_class=SensorStateClass.MEASUREMENT,
-                icon="mdi:weather-pouring",
-            ),
-        )
-    )
-    entities.append(
-        GeoWeatherSensor(
-            coordinator,
-            entry,
-            SensorEntityDescription(
-                key="regenvorhersage",
-                name="Regenvorhersage",
-                device_class=SensorDeviceClass.TIMESTAMP,
-                icon="mdi:weather-clock",
-            ),
-        )
-    )
+    # --- 1. Regen- & Wetter-Sensoren ---
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="niederschlag_aktuell", 
+        name="Niederschlag aktuell",
+        native_unit_of_measurement="mm/h", 
+        device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
+        state_class=SensorStateClass.MEASUREMENT, 
+        icon="mdi:weather-pouring"
+    )))
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="regenvorhersage", 
+        name="Regenvorhersage",
+        device_class=SensorDeviceClass.TIMESTAMP, 
+        icon="mdi:weather-clock"
+    )))
 
-    # 2. Standort & Warnungen
-    entities.append(
-        GeoWeatherSensor(
-            coordinator,
-            entry,
-            SensorEntityDescription(
-                key="standort", name="Aktueller Standort", icon="mdi:map-marker-radius"
-            ),
-        )
-    )
-    entities.append(
-        GeoWeatherSensor(
-            coordinator,
-            entry,
-            SensorEntityDescription(
-                key="warnungen_anzahl",
-                name="Wetterwarnungen",
-                icon="mdi:alert-decagram",
-            ),
-        )
-    )
+    # --- 2. Standort & Warnungen ---
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="standort", 
+        name="Aktueller Standort", 
+        icon="mdi:map-marker-radius"
+    )))
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="warnungen_anzahl", 
+        name="Wetterwarnungen Anzahl", 
+        icon="mdi:alert-decagram"
+    )))
 
-    # 3. Pollen-Sensoren (General + Einzeln)
-    entities.append(
-        GeoWeatherSensor(
-            coordinator,
-            entry,
-            SensorEntityDescription(
-                key="pollen_gesamt", name="Pollenbelastung Gesamt", icon="mdi:flower"
-            ),
-        )
-    )
+    # --- 3. Pollen-Sensoren ---
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="pollen_gesamt", 
+        name="Pollenbelastung Gesamt", 
+        icon="mdi:flower"
+    )))
     for key, name in POLLEN_TYPES:
-        entities.append(
-            GeoWeatherSensor(
-                coordinator,
-                entry,
-                SensorEntityDescription(
-                    key=f"pollen_{key}", name=name, icon="mdi:sprout"
-                ),
-            )
-        )
+        entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+            key=f"pollen_{key}", 
+            name=name, 
+            icon="mdi:sprout"
+        )))
+
+    # --- 4. Bonus- / Technik-Sensoren ---
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="letztes_update", 
+        name="Letztes Update", 
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:update"
+    )))
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="warn_region", 
+        name="DWD Warnregion", 
+        icon="mdi:map-check"
+    )))
 
     async_add_entities(entities)
-
 
 class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
     """Repräsentiert einen GeoWeather Sensor."""
@@ -112,12 +91,14 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self.entity_description = description
         self._entry = entry
-
+        
         # Eindeutige ID und Name mit Präfix
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_name = f"GeoWeather {description.name}"
-
-        # Zuordnung zum gleichen Gerät
+        # In HA wird dies zu sensor.geoweather_...
+        self._attr_has_entity_name = True
+        self._attr_name = description.name
+        
+        # Zuordnung zum GeoWeather Gerät
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": "GeoWeather",
@@ -131,33 +112,28 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
         data = self.coordinator.data
         key = self.entity_description.key
 
-        # Regen-Logik
+        # Radar/Regen
         radar = data.get("radar", {})
-        if key == "niederschlag_aktuell":
-            return radar.get("aktuell", 0.0)
-        if key == "regenvorhersage":
-            return radar.get("next_start")
+        if key == "niederschlag_aktuell": return radar.get("aktuell", 0.0)
+        if key == "regenvorhersage": return radar.get("next_start")
 
         # Standort & Warnungen
-        if key == "standort":
-            return data.get("location", {}).get("name", "Unbekannt")
-        if key == "warnungen_anzahl":
-            return len(data.get("warnings", []))
+        loc = data.get("location", {})
+        if key == "standort": return loc.get("name", "Unbekannt")
+        if key == "warn_region": return loc.get("warn_region_name", "Unbekannt")
+        if key == "warnungen_anzahl": return len(data.get("warnings", []))
 
-        # Pollen-Logik
+        # Pollen
         pollen = data.get("pollen", {})
         if key == "pollen_gesamt":
-            # Höchsten Wert aller 'heute' Pollen finden
-            vals = [
-                v
-                for k, v in pollen.items()
-                if "_heute" in k and isinstance(v, (int, float))
-            ]
+            vals = [v for k, v in pollen.items() if "_heute" in k and isinstance(v, (int, float))]
             return max(vals) if vals else 0.0
-
         if key.startswith("pollen_"):
             p_key = key.replace("pollen_", "")
             return pollen.get(f"{p_key}_heute", 0.0)
+
+        # Technik
+        if key == "letztes_update": return self.coordinator.last_update_success_time
 
         return None
 
@@ -169,17 +145,25 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
 
         if key == "niederschlag_aktuell":
             return {"forecast": data.get("radar", {}).get("forecast", {})}
-
+        
         if key == "regenvorhersage":
             radar = data.get("radar", {})
             return {
                 "next_end": radar.get("next_end"),
                 "next_length": radar.get("next_length"),
                 "next_max": radar.get("next_max_mmh"),
-                "next_sum": radar.get("next_sum_mm"),
+                "next_sum": radar.get("next_sum_mm")
             }
-
+            
         if key == "warnungen_anzahl":
             return {"aktive_warnungen": data.get("warnings", [])}
+        
+        if key == "standort":
+            loc = data.get("location", {})
+            return {
+                "kreis": loc.get("kreis"),
+                "bundesland": loc.get("state"),
+                "warncellid": loc.get("warncellid")
+            }
 
         return None
