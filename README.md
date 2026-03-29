@@ -151,7 +151,7 @@ condition:
 action:
   - action: geoweather.update
     data: {}
-mode: skip
+mode: single
 ---
 
 ## Update nach Ankunft (Stabilisierungs-Sperre)
@@ -205,58 +205,50 @@ name: Pollenflug
 show_state: true
 state_display: |
   [[[
-  const v = parseFloat(entity.state);
-  if (v <= 0.5) return 'Keine/Gering';
-  if (v <= 1.0) return 'Gering';
-  if (v <= 1.5) return 'Gering-Mittel';
-  if (v <= 2.0) return 'Mittel';
-  if (v <= 2.5) return 'Mittel-Hoch';
-  if (v >= 3.0) return 'Stark';
-  return v;
-]]]
+    const v = parseFloat(entity.state);
+    if (isNaN(v) || v === 0) return 'Keine';
+    if (v <= 0.5) return 'Keine-Gering';
+    if (v <= 1.0) return 'Gering';
+    if (v <= 1.5) return 'Gering-Mittel';
+    if (v <= 2.0) return 'Mittel';
+    if (v <= 2.5) return 'Mittel-Hoch';
+    return 'Stark';
+  ]]]
 styles:
   card:
     - padding: 5px
     - background-color: |
         [[[
-          const s = entity.state;
-          if (!s || s === 'unknown' || s === 'unavailable' || s === '0') 
-            return 'var(--card-background-color)';
-          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          if (val === 1) return '#ffeb3b'; // Gelb
-          if (val === 2) return '#fb8c00'; // Orange
-          if (val >= 3) return '#e53935';  // Rot
-          return 'var(--card-background-color)';
+          const v = parseFloat(entity.state);
+          if (isNaN(v) || v <= 0) return 'var(--card-background-color)';
+          if (v <= 1.5) return '#ffeb3b'; // Gelb
+          if (v <= 2.5) return '#fb8c00'; // Orange
+          return '#e53935';               // Rot
         ]]]
   icon:
     - color: |
         [[[
-          const s = entity.state;
-          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') return '#c5e566';
-          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          return (val === 1 || val === 2) ? 'black' : 'white';
+          const v = parseFloat(entity.state);
+          if (isNaN(v) || v <= 0) return '#c5e566';
+          return (v <= 2.5) ? 'black' : 'white';
         ]]]
   name:
     - font-weight: bold
     - font-size: 12px
     - color: |
         [[[
-          const s = entity.state;
-          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') 
-            return 'var(--primary-text-color)';
-          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          return (val === 1 || val === 2) ? 'black' : 'white';
+          const v = parseFloat(entity.state);
+          if (isNaN(v) || v <= 0) return 'var(--primary-text-color)';
+          return (v <= 2.5) ? 'black' : 'white';
         ]]]
   state:
     - font-size: 11px
     - font-weight: bold
     - color: |
         [[[
-          const s = entity.state;
-          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') 
-            return 'var(--primary-text-color)';
-          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          return (val === 1 || val === 2) ? 'black' : 'white';
+          const v = parseFloat(entity.state);
+          if (isNaN(v) || v <= 0) return 'var(--primary-text-color)';
+          return (v <= 2.5) ? 'black' : 'white';
         ]]]
 
 ```
