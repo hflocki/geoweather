@@ -16,22 +16,27 @@ PLATFORMS = ["sensor", "binary_sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up GeoWeather from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
-
+    
+    # 1. Coordinator Instanz erstellen
     coordinator = GeoWeatherCoordinator(hass, entry)
-    await coordinator.async_load_pollen_mapping()
-
-    # DIESE ZEILE FEHLTE: Sofortiger Abruf beim Laden
+    
+    # 2. Ersten Datenabruf beim Start ausführen
     await coordinator.async_config_entry_first_refresh()
 
+    # 3. Coordinator global in hass.data speichern (für sensor.py)
+    hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # 4. Service registrieren (falls noch nicht vorhanden)
     if not hass.services.has_service(DOMAIN, SERVICE_UPDATE):
         hass.services.async_register(
             DOMAIN, SERVICE_UPDATE, coordinator.async_service_update
         )
 
+    # 5. Plattformen (Sensor, etc.) laden
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    
+    # 6. Listener für Konfigurationsänderungen
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     return True
