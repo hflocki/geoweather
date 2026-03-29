@@ -198,65 +198,58 @@ Diese Karte zeigt das aktuelle Maximum der Pollenbelastung. Der Hintergrund und 
 
 ```yaml
 type: custom:button-card
-entity: sensor.geoweather_pollenflug
+entity: sensor.geoweather_pollenbelastung_gesamt
 aspect_ratio: 1/1
 show_name: true
 name: Pollenflug
 show_state: true
 state_display: |
   [[[
-  const v = parseFloat(entity.state);
-  if (v <= 0.5) return 'Keine/Gering';
-  if (v <= 1.0) return 'Gering';
-  if (v <= 1.5) return 'Gering-Mittel';
-  if (v <= 2.0) return 'Mittel';
-  if (v <= 2.5) return 'Mittel-Hoch';
-  if (v >= 3.0) return 'Stark';
-  return v;
-]]]
+    const s = parseFloat(entity.state);
+    if (isNaN(s)) return 'Lade...';
+    if (s === 0)   return 'Keine';
+    if (s <= 0.5) return 'Sehr gering';
+    if (s <= 1.5) return 'Gering';
+    if (s <= 2.5) return 'Mittel';
+    if (s > 2.5)  return 'Stark';
+    return s;
+  ]]]
 styles:
   card:
     - padding: 5px
     - background-color: |
         [[[
-          const s = entity.state;
-          if (!s || s === 'unknown' || s === 'unavailable' || s === '0') 
-            return 'var(--card-background-color)';
-          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          if (val === 1) return '#ffeb3b'; // Gelb
-          if (val === 2) return '#fb8c00'; // Orange
-          if (val >= 3) return '#e53935';  // Rot
+          const val = parseFloat(entity.state);
+          if (isNaN(val) || val === 0) return 'var(--card-background-color)';
+          if (val <= 1.5) return '#ffeb3b'; // Gelb
+          if (val <= 2.5) return '#fb8c00'; // Orange
+          if (val > 2.5)  return '#e53935'; // Rot
           return 'var(--card-background-color)';
         ]]]
   icon:
     - color: |
         [[[
-          const s = entity.state;
-          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') return '#c5e566';
-          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          return (val === 1 || val === 2) ? 'black' : 'white';
+          const val = parseFloat(entity.state);
+          if (isNaN(val) || val === 0) return '#c5e566';
+          return (val <= 2.5) ? 'black' : 'white';
         ]]]
   name:
     - font-weight: bold
     - font-size: 12px
     - color: |
         [[[
-          const s = entity.state;
-          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') 
-            return 'var(--primary-text-color)';
-          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          return (val === 1 || val === 2) ? 'black' : 'white';
+          const val = parseFloat(entity.state);
+          if (isNaN(val) || val === 0) return 'var(--primary-text-color)';
+          return (val <= 2.5) ? 'black' : 'white';
         ]]]
   state:
     - font-size: 11px
     - font-weight: bold
     - color: |
         [[[
-          const s = entity.state;
-          if (!s || s === '0' || s === 'unknown' || s === 'unavailable') 
-            return 'var(--primary-text-color)';
-          const val = String(s).includes('-') ? parseInt(s.split('-')[1]) : parseInt(s);
-          return (val === 1 || val === 2) ? 'black' : 'white';
+          const val = parseFloat(entity.state);
+          if (isNaN(val) || val === 0) return 'var(--primary-text-color)';
+          return (val <= 2.5) ? 'black' : 'white';
         ]]]
 
 ```
@@ -264,18 +257,16 @@ styles:
 ## Wetterwarnungen (Status-Icon)
 
 ```yaml
-
 type: custom:button-card
-entity: sensor.geoweather_warnungen
+entity: sensor.geoweather_wetterwarnungen_anzahl
 aspect_ratio: 1/1
 show_name: false
 show_label: true
 label: |-
   [[[ 
     const anzahl = parseInt(entity.state);
-    const warnings = entity.attributes.warnungen;
+    const warnings = entity.attributes.aktive_warnungen;
     if (isNaN(anzahl) || anzahl === 0 || !warnings || warnings.length === 0) return 'Alles ok';
-    // Zeige das Ereignis der ersten Warnung (z.B. Frost)
     return warnings[0].ereignis; 
   ]]]
 icon: |-
@@ -292,28 +283,26 @@ styles:
     - padding: 5px
     - background-color: |-
         [[[ 
-          const warnings = entity.attributes.warnungen;
+          const warnings = entity.attributes.aktive_warnungen;
           if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
-          
           const level = parseInt(warnings[0].schwere_level);
-          // Farbskala basierend auf schwere_level
-          if (level <= 1) return '#ffeb3b'; // Gelb (Minor)
-          if (level === 2) return '#fb8c00'; // Orange (Moderate)
-          if (level === 3) return '#e53935'; // Rot (Severe)
-          if (level >= 4) return '#880e4f';  // Violett (Extreme)
+          if (level <= 1) return '#ffeb3b'; // Gelb
+          if (level === 2) return '#fb8c00'; // Orange
+          if (level === 3) return '#e53935'; // Rot
+          if (level >= 4) return '#880e4f';  // Violett
           return 'var(--card-background-color)';
         ]]]
   icon:
     - color: |-
         [[[ 
-          const warnings = entity.attributes.warnungen;
+          const warnings = entity.attributes.aktive_warnungen;
           if (!warnings || warnings.length === 0) return '#c5e566';
           const level = parseInt(warnings[0].schwere_level);
           return (level <= 2) ? 'black' : 'white'; 
         ]]]
     - animation: |-
         [[[
-          const warnings = entity.attributes.warnungen;
+          const warnings = entity.attributes.aktive_warnungen;
           return (warnings && warnings.length > 0 && parseInt(warnings[0].schwere_level) >= 2) 
             ? 'blink 2s ease-in-out infinite' 
             : 'none';
@@ -325,7 +314,7 @@ styles:
     - text-wrap: wrap
     - color: |-
         [[[ 
-          const warnings = entity.attributes.warnungen;
+          const warnings = entity.attributes.aktive_warnungen;
           if (!warnings || warnings.length === 0) return 'var(--primary-text-color)';
           const level = parseInt(warnings[0].schwere_level);
           return (level <= 2) ? 'black' : 'white'; 
@@ -338,13 +327,15 @@ styles:
 ```yaml
 type: markdown
 content: |
-  {% set warnungen = state_attr('sensor.geoweather_warnungen', 'warnungen') %}
+  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen_anzahl', 'aktive_warnungen') %}
   {% if warnungen %}
     {% for w in warnungen %}
     ### ⚠️ {{ w.ereignis }}
     **{{ w.headline }}**
     *🕒 {{ as_timestamp(w.beginn) | timestamp_custom('%H:%M') }} - {{ as_timestamp(w.ende) | timestamp_custom('%H:%M Uhr') }}*
+    
     > {{ w.beschreibung }}
+    
     ---
     {% endfor %}
   {% else %}
@@ -355,35 +346,29 @@ content: |
 ## Regenvorhersage (Mushroom Style)
 ```yaml
 type: custom:mushroom-template-card
-entity: sensor.geoweather_regenvorhersage
-icon: mdi:weather-rainy
-icon_color: "{% if states(entity) | float(0) > 0 %} blue {% else %} grey {% endif %}"
-primary: |-
-  {% set next_start = state_attr(entity, 'next_start') %}
-  {% set next_end = state_attr(entity, 'next_end') %}
-  {% set next_length = state_attr(entity, 'next_length_min') | int(0) %}
-  
-  {% if next_start is not none %}
-    {% set start_ts = next_start | as_timestamp(0) %}
-    {% set now_ts = now() | as_timestamp %}
-    
-    {% if (start_ts > now_ts) %}
-      {# Fallback falls length 0 ist, aber start existiert #}
-      {% set display_length = next_length if next_length > 0 else 5 %}
-      In {{ ((start_ts - now_ts) / 60) | int }} Min. Regen für {{ display_length }} Min.
-    {% elif (next_end is not none and as_timestamp(next_end) > now_ts) %}
-      Regen noch für {{ ((as_timestamp(next_end) - now_ts) / 60) | int }} Min.
-    {% else %}
-      Aktuell Regen / Schauer.
-    {% endif %}
+primary: |
+  {% if states('sensor.geoweather_regenvorhersage') == 'Kein Regen' %}
+    Alles trocken
   {% else %}
-    Kein Regen in Sicht.
+    Regen ab {{ states('sensor.geoweather_regenvorhersage') }}
   {% endif %}
-card_mod:
-  style: |
-    ha-card {
-      background-image: linear-gradient(90deg{% set forecast = state_attr(config.entity, 'forecast') %}{% if forecast %}{% set items = forecast.items() | list %}{% set first = items | first %}{% set last = items | last %}{% set duration = last[0] | as_timestamp - now() | as_timestamp %}{% for x, y in items %}{% set pos = ((x | as_timestamp - now() | as_timestamp)/duration*100) | round %}{% set alpha = 0.5 if y > 0 else 0 %}{% if pos >= 0 %}, hsla(200, 100%, 50%, {{alpha}}) {{pos}}%{% endif %}{% endfor %}{% endif %});
-    }
+secondary: |
+  {% set mm = state_attr('sensor.geoweather_regenvorhersage', 'next_sum_mm') | float(0) %}
+  {% if mm > 0 %}
+    Menge: {{ mm }} mm | Dauer: {{ state_attr('sensor.geoweather_regenvorhersage', 'next_length_min') }} min
+  {% else %}
+    Intensität: {{ states('sensor.geoweather_niederschlag_aktuell') }} mm/h
+  {% endif %}
+icon: mdi:weather-pouring
+icon_color: |-
+  {% if states('sensor.geoweather_regenvorhersage') == 'Kein Regen' %}
+    disabled
+  {% else %}
+    blue
+  {% endif %}
+entity: sensor.geoweather_regenvorhersage
+tap_action:
+  action: more-info
 
 ```
 
@@ -442,74 +427,62 @@ cards:
     cards:
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_birke
         name: Birke
         icon: mdi:tree
-        variables:
-          pollen_attr: birke_heute
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_graser
         name: Gräser
         icon: mdi:grass
-        variables:
-          pollen_attr: graeser_heute
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_roggen
         name: Roggen
         icon: mdi:barley
-        variables:
-          pollen_attr: roggen_heute
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_erle
         name: Erle
         icon: mdi:leaf
-        variables:
-          pollen_attr: erle_heute
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_hasel
         name: Hasel
         icon: mdi:nut
-        variables:
-          pollen_attr: hasel_heute
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_esche
         name: Esche
         icon: mdi:tree-outline
-        variables:
-          pollen_attr: esche_heute
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_beifuss
         name: Beifuß
         icon: mdi:sprout
-        variables:
-          pollen_attr: beifuss_heute
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_ambrosia
         name: Ambrosia
         icon: mdi:flower-tulip
-        variables:
-          pollen_attr: ambrosia_heute
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollenflug
+        entity: sensor.geoweather_pollen_eiche
         name: Eiche
         icon: mdi:tree-outline
-        variables:
-          pollen_attr: eiche_heute
+
+  # Die Regions-Anzeige am Ende
   - type: custom:button-card
-    entity: sensor.geoweather_pollenflug
+    entity: sensor.geoweather_dwd_warnregion
     show_icon: false
     name: |
-      [[[ return "Region: " + entity.attributes.dwd_teilregion ]]]
+      [[[ return "Region: " + entity.state ]]]
     styles:
-      name: [font-size: 12px, font-style: italic, opacity: 0.6, justify-self: center]
+      name:
+        - font-size: 12px
+        - font-style: italic
+        - opacity: 0.6
+        - justify-self: center
 
 ```
 
@@ -518,6 +491,16 @@ cards:
 button_card_templates:
   pollen_style:
     aspect_ratio: 1/1
+    show_state: true
+    state_display: |
+      [[[
+        const v = parseFloat(entity.state);
+        if (isNaN(v) || v === 0) return 'Keine';
+        if (v <= 0.5) return 'S. Gering';
+        if (v <= 1.5) return 'Gering';
+        if (v <= 2.5) return 'Mittel';
+        return 'Stark';
+      ]]]
     styles:
       card:
         - border-radius: 12px
@@ -529,11 +512,11 @@ button_card_templates:
         - width: 70%
         - color: |
             [[[
-              const v = parseFloat(entity.attributes[variables.pollen_attr]);
-              if (v == 0) return '#4caf50';    // Grün
-              if (v <= 1.5) return '#ffeb3b';  // Gelb
-              if (v <= 2.5) return '#fb8c00';  // Orange
-              if (v >= 3.0) return '#e53935';  // Rot
+              const v = parseFloat(entity.state);
+              if (isNaN(v) || v == 0) return '#4caf50';  // Grün
+              if (v <= 1.5) return '#ffeb3b';            // Gelb
+              if (v <= 2.5) return '#fb8c00';            // Orange
+              if (v >= 2.6) return '#e53935';            // Rot
               return 'grey';
             ]]]
       name:
