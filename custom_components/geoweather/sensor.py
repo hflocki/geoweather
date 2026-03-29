@@ -133,7 +133,7 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
             return pollen.get(f"{p_key}_heute", 0.0)
 
         # Technik
-        if key == "letztes_update": return self.coordinator.last_update_success_time
+        if key == "letztes_update": return self.coordinator.last_update_success
 
         return None
 
