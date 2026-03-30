@@ -435,7 +435,7 @@ cards:
         icon: mdi:tree
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollen_graser
+        entity: sensor.geoweather_pollen_graeser
         name: Gräser
         icon: mdi:grass
       - type: custom:button-card
@@ -473,61 +473,71 @@ cards:
         entity: sensor.geoweather_pollen_eiche
         name: Eiche
         icon: mdi:tree-outline
-
-  # Die Regions-Anzeige am Ende
   - type: custom:button-card
-    entity: sensor.geoweather_dwd_warnregion
+    entity: sensor.geoweather_pollenbelastung_gesamt
     show_icon: false
     name: |
-      [[[ return "Region: " + entity.state ]]]
+      [[[ 
+        if (!entity || !entity.attributes) return "Lade Daten...";
+        const id = entity.attributes.dwd_region_id || '??';
+        const region = entity.attributes.dwd_teilregion || 'Unbekannt';
+        const kreis = entity.attributes.kreis || 'Standort wird ermittelt...';
+        return "Kreis: " + kreis + "<br><small>DWD ID " + id + ": " + region + "</small>";
+      ]]]
     styles:
+      card:
+        - border-top: 1px solid rgba(255,255,255,0.1)
+        - margin-top: 5px
+        - background: none
       name:
-        - font-size: 12px
+        - font-size: 11px
         - font-style: italic
-        - opacity: 0.6
-        - justify-self: center
+        - opacity: 0.8
+        - text-align: center
+
 
 ```
 
 ##Beispiel für Kacheln als Pollenraster (Einfügen unter Raw-Konfigurationseditor oberhalb von views: )
 ```yaml
 button_card_templates:
-  pollen_style:
+  pollen_style: 
     aspect_ratio: 1/1
-    show_state: true
-    state_display: |
-      [[[
-        const v = parseFloat(entity.state);
-        if (isNaN(v) || v === 0) return 'Keine';
-        if (v <= 0.5) return 'S. Gering';
-        if (v <= 1.5) return 'Gering';
-        if (v <= 2.5) return 'Mittel';
-        return 'Stark';
-      ]]]
+    show_state: false
+    show_label: true
     styles:
       card:
         - border-radius: 12px
-        - padding: 8%
+        - padding: 5px
       grid:
-        - grid-template-areas: '"i" "n" "s"'
+        - grid-template-areas: '"i" "n" "l"'
         - grid-template-rows: 1fr min-content min-content
       icon:
-        - width: 70%
+        - width: 55%
         - color: |
             [[[
               const v = parseFloat(entity.state);
-              if (isNaN(v) || v == 0) return '#4caf50';  // Grün
-              if (v <= 1.5) return '#ffeb3b';            // Gelb
-              if (v <= 2.5) return '#fb8c00';            // Orange
-              if (v >= 2.6) return '#e53935';            // Rot
-              return 'grey';
+              if (isNaN(v) || v === 0) return 'rgba(255,255,255,0.2)';
+              if (v <= 1) return '#c5e566'; // Sehr gering
+              if (v <= 2) return '#ffeb3b'; // Gering
+              if (v <= 3) return '#fdd835'; // Gering-Mittel
+              if (v <= 4) return '#fb8c00'; // Mittel
+              if (v <= 5) return '#ff7043'; // Mittel-Stark
+              return '#e53935';             // Stark
             ]]]
       name:
-        - font-size: 10px
+        - font-size: 11px
         - font-weight: bold
-      state:
-        - font-size: 9px
-        - opacity: 0.8
+      label:
+        - font-size: 10px
+        - opacity: 0.9
+        - justify-self: center
+    label: |
+      [[[
+        const h = entity.state;
+        const m = (entity.attributes && entity.attributes.tomorrow !== undefined) ? entity.attributes.tomorrow : '?';
+        return "H: " + h + " | M: " + m;
+      ]]]
 ```
 ---
 
