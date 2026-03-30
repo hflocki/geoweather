@@ -435,7 +435,7 @@ cards:
         icon: mdi:tree
       - type: custom:button-card
         template: pollen_style
-        entity: sensor.geoweather_pollen_graeser
+        entity: sensor.geoweather_pollen_graser
         name: Gräser
         icon: mdi:grass
       - type: custom:button-card
