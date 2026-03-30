@@ -25,7 +25,8 @@ from .const import (
     DWD_EVENT_TYPES,
     DWD_SEVERITY,
     POLLEN_TYPES,
-    POLLEN_MAPPING,  # Kommt jetzt direkt aus der const.py
+    POLLEN_MAPPING,  
+    POLLEN_REGION_MAPPING,
     URL_DWD_POLLEN,
     URL_DWD_RADAR,
     URL_DWD_WARNCELL,
