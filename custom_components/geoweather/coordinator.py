@@ -24,8 +24,7 @@ from .const import (
     DOMAIN,
     DWD_EVENT_TYPES,
     DWD_SEVERITY,
-    POLLEN_TYPES,
-    POLLEN_MAPPING,  
+    POLLEN_TYPES,  
     POLLEN_REGION_MAPPING,
     URL_DWD_POLLEN,
     URL_DWD_RADAR,
@@ -48,8 +47,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval)
         self.entry = entry
         self.last_skip_reason: str | None = None
-        # Hier nutzen wir jetzt die feste Liste aus der const.py
-        self._pollen_mapping = POLLEN_MAPPING 
+        self._pollen_mapping = POLLEN_REGION_MAPPING 
         self._radar_etag: str | None = None
         self._radar_bytes: bytes | None = None
         self.last_update_success_time = None
