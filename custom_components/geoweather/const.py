@@ -134,6 +134,7 @@ POLLEN_REGION_MAPPING = {
     "Wuppertal": 41,
     "Remscheid": 41,
     "Solingen": 41,
+    "Duisburg": 41,
     "Münster": 42,
     "Bielefeld": 42,
     "Siegen-Wittgenstein": 43,
