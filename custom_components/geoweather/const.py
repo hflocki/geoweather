@@ -125,7 +125,7 @@ POLLEN_TYPES = [
     "Eiche",
 ]
 
-POLLEN_MAPPING = {
+POLLEN_REGION_MAPPING = {
     "Berlin": 50,
     "Brandenburg und Berlin": 50,
     "Rheinisch-Bergischer Kreis": 41,
