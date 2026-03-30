@@ -105,30 +105,30 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         }
 
    async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
-        """Sucht die Region und ruft DWD Daten ab."""
-        # Fehlerbehebung: Nutze 'kreis' statt 'city_name'
-        region_name = POLLEN_REGION_MAPPING.get(kreis)
+        """Sucht die Region-ID und ruft DWD Daten ab."""
         
-        if not region_name:
+        # 1. ID aus dem Mapping holen (Mapping muss in der const.py stehen)
+        # Wir nutzen hier 'kreis' als Key, um die ID zu finden
+        target_id = POLLEN_REGION_MAPPING.get(str(kreis).strip())
+        
+        if target_id is None:
             _LOGGER.warning(
-                "GeoWeather: Ort '%s' nicht im Pollen-Mapping gefunden! "
+                "GeoWeather: Kein ID-Mapping für Ort '%s' gefunden! "
                 "Bitte in der const.py ergänzen.", kreis
             )
-            # Rückgabe von 0, damit Sensoren existieren aber leer sind
             return {f"{p.lower()}_today": 0.0 for p in POLLEN_TYPES}
 
         try:
             async with session.get(URL_DWD_POLLEN) as resp:
                 if resp.status != 200:
-                    _LOGGER.error("DWD Pollen-Server Fehler: %s", resp.status)
                     return {"dwd_teilregion": "Server-Fehler"}
                 data = await resp.json(content_type=None)
         except Exception as e:
             _LOGGER.error("Pollen-Abruf fehlgeschlagen: %s", e)
             return {"dwd_teilregion": "Abruffehler"}
         
-        # Initialisierung der Ergebnisse
-        res = {"dwd_teilregion": region_name}
+        # Ergebnis-Container vorbereiten
+        res = {"dwd_teilregion": "Unbekannt", "dwd_region_id": target_id}
         all_today_values = []
 
         def _convert_to_index(val):
@@ -142,15 +142,17 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         def _clean(text):
             return str(text).lower().replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
 
-        # Suche nach dem Eintrag im DWD-JSON basierend auf dem Namen aus dem Mapping
+        # 2. Den richtigen Eintrag im DWD-JSON über die ID finden
         found_entry = None
         for entry in data.get("content", []):
-            dwd_name = entry.get("partregion_name") or entry.get("region_name")
-            if dwd_name == region_name:
+            t_str = str(target_id)
+            # Abgleich gegen partregion_id oder region_id
+            if t_str == str(entry.get("partregion_id")) or t_str == str(entry.get("region_id")):
                 found_entry = entry
                 break
             
         if found_entry:
+            res["dwd_teilregion"] = found_entry.get("partregion_name") or found_entry.get("region_name")
             pdata = found_entry.get("Pollen") or found_entry.get("pollen") or {}
             
             for p_type in POLLEN_TYPES:
@@ -158,24 +160,23 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 val_today = 0.0
                 val_tomorrow = 0.0
                 
-                # Den passenden Pollentyp im DWD-Datensatz finden
                 for dwd_key, dwd_content in pdata.items():
                     if clean_type == _clean(dwd_key):
                         val_today = _convert_to_index(dwd_content.get("today"))
                         val_tomorrow = _convert_to_index(dwd_content.get("tomorrow"))
                         break
                 
-                # Speicherung der Werte
+                # Speicherung der Einzelwerte
                 res[f"{clean_type}_today"] = val_today
                 res[f"{clean_type}_tomorrow"] = val_tomorrow
-                res[f"pollen_{clean_type}"] = val_today # Abwärtskompatibilität
+                res[f"pollen_{clean_type}"] = val_today
                 
                 all_today_values.append(val_today)
 
-            # Max-Wert für den Hauptsensor berechnen
+            # 3. Den Maximalwert für den Hauptsensor berechnen
             res["pollen_max_today"] = max(all_today_values) if all_today_values else 0.0
         else:
-            _LOGGER.error("GeoWeather: Region '%s' im DWD-Datensatz nicht gefunden!", region_name)
+            _LOGGER.error("GeoWeather: ID '%s' im DWD-Datensatz nicht gefunden!", target_id)
 
         return res
 
