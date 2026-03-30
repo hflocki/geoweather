@@ -18,9 +18,9 @@ GeoWeather ist eine spezialisierte Home Assistant Integration für Wohnmobile un
 
 - 📍 **Aktueller Standort:** Gemeinde / Kreis / Bundesland / WarnCellID
 - ⛈️ **Wetterwarnungen:** Aktive Warnungen mit Schweregrad, Typ und Zeitraum
-- 🌿 **Pollenflug-Vorhersage:** Heute / Morgen / Übermorgen für 9 Pollenarten
+- 🌿 **Pollenflug-Vorhersage:** NEU: Jetzt mit Vorhersage für **Heute / Morgen / Übermorgen**
 - 🌧️ **Regenvorhersage:** Aktuelle Niederschlagsintensität + Forecast via DWD Radar
-- 🚗 **Fahrt-Erkennung:** Automatische Pausierung von API-Aufrufen während der Fahrt
+- 🚀 **Zero-Config:** Das Pollen-Region-Mapping ist nun fest integriert (keine `pollen_mapping.yaml` mehr nötig!)
 
 
 ---
@@ -75,13 +75,32 @@ Alle Entitäten werden unter einem gemeinsamen **GeoWeather-Gerät** gruppiert, 
 | Entität | State (Zustand) | Beschreibung |
 |:---|:---|:---|
 | `sensor.geoweather_standort` | Gemeindename | Liefert Kreis, Bundesland und WarnCellID in den Attributen. |
-| `sensor.geoweather_warnungen` | Anzahl (Int) | Anzahl aktiver Warnungen. Details (Event, Level, Beschreibung) in den Attributen. |
-| `sensor.geoweather_pollenflug` | Höchste Stufe | Aktueller Belastungsindex. Alle 8 Pollenarten sind als Attribute verfügbar. |
-| `sensor.geoweather_regenvorhersage` | mm/h | Aktuelle Regenrate. Inklusive 2h-Forecast-Map und Regenstart/-ende. |
-| `binary_sensor.geoweather_moving` | `on` / `off` | `on` = Fahrt erkannt (Updates pausiert) |
+| `sensor.geoweather_warnungen` | Anzahl (Int) | Anzahl aktiver Warnungen. Details in den Attributen. |
+| `sensor.geoweather_pollen_...` | Index (0-3) | **9 Einzelsensoren** (Birke, Gräser, etc.) mit Vorhersage-Attributen. |
+| `sensor.geoweather_pollenbelastung_gesamt` | Höchste Stufe | Aktueller Belastungsindex inkl. DWD-Region-Info. |
+| `sensor.geoweather_niederschlag_aktuell` |	mm/h	| Aktuelle Regenintensität direkt an deiner GPS-Position. |
+| `sensor.geoweather_regenvorhersage`	| Startzeit	| Wann der nächste Regen beginnt (inkl. Radar-Forecast-Map). |
+| `binary_sensor.geoweather_moving` | `on` / `off` | `on` = Fahrt erkannt (Updates pausiert zum Ressourcenschutz) |
 | `sensor.geoweather_api_call_intervall` | Minuten | Zeigt das aktuell konfigurierte Abruf-Intervall an. |
 
-> **Pro-Tipp:** Der Warnungen-Sensor liefert eine Ganzzahl. Du kannst ihn im Dashboard einfach mit einem Badge versehen oder Automationen triggern, wenn `state > 0`.
+
+Ab Version 2.0.0 liefert jeder Pollensensor (`sensor.geoweather_pollen_*`) folgende Attribute:
+- **today**: Belastung heute (entspricht dem State).
+- **tomorrow**: Belastung für morgen.
+- **dayafter_to**: Belastung für übermorgen.
+
+---
+
+## 🌸 Pollenflug-Belastungsstufen (DWD Index)
+
+| Wert | Bedeutung | Beschreibung |
+|:---:|:---|:---|
+| 0.0 | Keine | Keine Belastung nachweisbar. |
+| 1.0 | Gering | Leicht erhöhte Konzentration. |
+| 2.0 | Mittel | Deutliche Symptome. |
+| 3.0 | Stark | Maximale Warnstufe. |
+
+*(Zwischenstufen wie 0.5, 1.5, 2.5 bilden die DWD-Bereiche "gering bis mittel" etc. ab).*
 
 ---
 
