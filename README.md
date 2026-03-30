@@ -369,10 +369,12 @@ content: |
 ```yaml
 type: custom:mushroom-template-card
 primary: |
-  {% if states('sensor.geoweather_regenvorhersage') == 'Kein Regen' %}
+  {% set regenzustand = states('sensor.geoweather_regenvorhersage') %}
+  {% if regenzustand == 'Kein Regen' %}
     Alles trocken
   {% else %}
-    Regen ab {{ states('sensor.geoweather_regenvorhersage') }}
+    {# Umwandlung von UTC in Lokalzeit und Formatierung auf HH:mm #}
+    Regen ab {{ as_timestamp(regenzustand) | timestamp_custom('%H:%M') }} Uhr
   {% endif %}
 secondary: |
   {% set mm = state_attr('sensor.geoweather_regenvorhersage', 'next_sum_mm') | float(0) %}
