@@ -150,30 +150,25 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             res["dwd_teilregion"] = found_entry.get("partregion_name") or found_entry.get("region_name")
             pdata = found_entry.get("Pollen") or found_entry.get("pollen") or {}
             
-            # Wir gehen die Typen aus deiner const.py in EINER Schleife durch
+            # Iteration über Pollentypen zur Erfassung der Daten
             for p_type in POLLEN_TYPES:
+                # 'clean_type' wird für den Abgleich mit DWD-Daten genutzt (z.B. graeser)
                 clean_type = _clean(p_type)
-                p_key = p_type.lower()
+                # 'p_key' wird für die internen Keys in Home Assistant genutzt
+                p_key = clean_type 
                 
                 val_today = 0.0
                 val_tomorrow = 0.0
-                val_dayafter = 0.0
                 
-                # Suche in den DWD-Daten nach dem passenden Typ
                 for dwd_key, dwd_content in pdata.items():
                     if clean_type == _clean(dwd_key):
                         val_today = _convert_to_index(dwd_content.get("today"))
                         val_tomorrow = _convert_to_index(dwd_content.get("tomorrow"))
-                        val_dayafter = _convert_to_index(dwd_content.get("dayafter_to"))
                         break
                 
-                # Daten für den Sensor-State und die Attribute bereitstellen
-                # Das wird von der sensor.py so erwartet (z.B. birke_today)
+                # Speicherung unter dem bereinigten Key 'graeser'
                 res[f"{p_key}_today"] = val_today
                 res[f"{p_key}_tomorrow"] = val_tomorrow
-                res[f"{p_key}_dayafter_to"] = val_dayafter
-                
-                # Kompatibilität für den Hauptwert
                 res[f"pollen_{p_key}"] = val_today
 
         return res
