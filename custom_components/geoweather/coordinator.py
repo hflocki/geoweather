@@ -54,7 +54,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self.last_update_success_time = None
 
     async def _async_update_data(self) -> dict:
-        """Zentrale Update-Logik."""
         if self._is_moving():
             self.last_skip_reason = "Fahrt aktiv"
             return self.data or {}
@@ -105,75 +104,81 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
-    async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
-        """Pollendaten abrufen und Kategorien 0-6 inkl. Vorhersage zuordnen."""
+   async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
+        """Sucht die Region und ruft DWD Daten ab."""
+        # Fehlerbehebung: Nutze 'kreis' statt 'city_name'
+        region_name = POLLEN_REGION_MAPPING.get(kreis)
+        
+        if not region_name:
+            _LOGGER.warning(
+                "GeoWeather: Ort '%s' nicht im Pollen-Mapping gefunden! "
+                "Bitte in der const.py ergänzen.", kreis
+            )
+            # Rückgabe von 0, damit Sensoren existieren aber leer sind
+            return {f"{p.lower()}_today": 0.0 for p in POLLEN_TYPES}
+
         try:
             async with session.get(URL_DWD_POLLEN) as resp:
                 if resp.status != 200:
+                    _LOGGER.error("DWD Pollen-Server Fehler: %s", resp.status)
                     return {"dwd_teilregion": "Server-Fehler"}
                 data = await resp.json(content_type=None)
         except Exception as e:
             _LOGGER.error("Pollen-Abruf fehlgeschlagen: %s", e)
             return {"dwd_teilregion": "Abruffehler"}
         
-        target_id = self._pollen_mapping.get(str(kreis).strip())
-        res = {"dwd_teilregion": "Unbekannt", "dwd_region_id": target_id}
-
-        if target_id is None:
-            return res
+        # Initialisierung der Ergebnisse
+        res = {"dwd_teilregion": region_name}
+        all_today_values = []
 
         def _convert_to_index(val):
-            """Umrechnung laut DWD-Legende (0 bis 6)."""
+            """Umrechnung laut DWD-Legende (v2.0.0 Standard)."""
             v = str(val).strip()
             mapping = {
-                "0": 0.0,   # keine
-                "0-1": 1.0, # keine bis geringe
-                "1": 2.0,   # geringe
-                "1-2": 3.0, # geringe bis mittlere
-                "2": 4.0,   # mittlere
-                "2-3": 5.0, # mittlere bis hohe
-                "3": 6.0    # hohe
+                "0": 0.0, "0-1": 0.5, "1": 1.0, "1-2": 1.5, "2": 2.0, "2-3": 2.5, "3": 3.0
             }
             return mapping.get(v, 0.0)
 
         def _clean(text):
             return str(text).lower().replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
 
+        # Suche nach dem Eintrag im DWD-JSON basierend auf dem Namen aus dem Mapping
         found_entry = None
         for entry in data.get("content", []):
-            t_str = str(target_id)
-            if t_str == str(entry.get("partregion_id")) or t_str == str(entry.get("region_id")):
+            dwd_name = entry.get("partregion_name") or entry.get("region_name")
+            if dwd_name == region_name:
                 found_entry = entry
                 break
             
         if found_entry:
-            res["dwd_teilregion"] = found_entry.get("partregion_name") or found_entry.get("region_name")
             pdata = found_entry.get("Pollen") or found_entry.get("pollen") or {}
             
-            # Iteration über Pollentypen zur Erfassung der Daten
             for p_type in POLLEN_TYPES:
-                # 'clean_type' wird für den Abgleich mit DWD-Daten genutzt (z.B. graeser)
                 clean_type = _clean(p_type)
-                # 'p_key' wird für die internen Keys in Home Assistant genutzt
-                p_key = clean_type 
-                
                 val_today = 0.0
                 val_tomorrow = 0.0
                 
+                # Den passenden Pollentyp im DWD-Datensatz finden
                 for dwd_key, dwd_content in pdata.items():
                     if clean_type == _clean(dwd_key):
                         val_today = _convert_to_index(dwd_content.get("today"))
                         val_tomorrow = _convert_to_index(dwd_content.get("tomorrow"))
                         break
                 
-                # Speicherung unter dem bereinigten Key 'graeser'
-                res[f"{p_key}_today"] = val_today
-                res[f"{p_key}_tomorrow"] = val_tomorrow
-                res[f"pollen_{p_key}"] = val_today
+                # Speicherung der Werte
+                res[f"{clean_type}_today"] = val_today
+                res[f"{clean_type}_tomorrow"] = val_tomorrow
+                res[f"pollen_{clean_type}"] = val_today # Abwärtskompatibilität
+                
+                all_today_values.append(val_today)
+
+            # Max-Wert für den Hauptsensor berechnen
+            res["pollen_max_today"] = max(all_today_values) if all_today_values else 0.0
+        else:
+            _LOGGER.error("GeoWeather: Region '%s' im DWD-Datensatz nicht gefunden!", region_name)
 
         return res
 
-    # ... Restliche Funktionen (_fetch_location, _fetch_warnings, _fetch_radar etc.) bleiben gleich
     async def _fetch_location(self, session, lat, lon) -> dict:
         import time
         t = int(time.time())
