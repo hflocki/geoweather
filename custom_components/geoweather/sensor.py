@@ -93,7 +93,6 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
         loc = data.get("location", {})
         if key == "standort": return loc.get("gemeinde") or loc.get("kreis") or "Unbekannt"
         
-        # HIER DER FIX FÜR DIE WARNREGION:
         if key == "warn_region": 
             return loc.get("warn_region_name") or loc.get("kreis") or "Unbekannt"
             
@@ -103,11 +102,14 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
         # 3. Pollen
         pollen = data.get("pollen", {})
         if key == "pollen_gesamt":
-            vals = [v for k, v in pollen.items() if "_heute" in k and isinstance(v, (int, float))]
+            # Berechnet das Maximum aller Pollenarten für heute
+            vals = [v for k, v in pollen.items() if k.endswith("_today") and isinstance(v, (int, float))]
             return max(vals) if vals else 0.0
+
         if key.startswith("pollen_"):
             p_key = key.replace("pollen_", "")
-            return pollen.get(f"{p_key}_heute", 0.0)
+            # Holt den Wert für heute (z.B. birke_today)
+            return pollen.get(f"{p_key}_today", 0.0)
 
         # 4. Technik
         if key == "letztes_update":
@@ -119,9 +121,13 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data
-        if not data: return None
+        if not data: 
+            return None
+        
         key = self.entity_description.key
+        pollen = data.get("pollen", {})
 
+        # 1. Radar Attribute
         if key == "niederschlag_aktuell":
             return {"forecast": data.get("regen", {}).get("forecast", {})}
         
@@ -134,14 +140,33 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "next_sum_mm": regen.get("next_sum_mm")
             }
             
+        # 2. Warnungs Attribute
         if key == "warnungen_anzahl":
             return {"aktive_warnungen": data.get("warnings", {}).get("warnungen", [])}
         
+        # 3. Standort Attribute
         if key == "standort":
             loc = data.get("location", {})
             return {
                 "kreis": loc.get("kreis"),
                 "warncellid": loc.get("warncellid")
+            }
+
+        # 4. Pollen Attribute für den Gesamt-Sensor
+        if key == "pollen_gesamt":
+            return {
+                "dwd_region_id": pollen.get("dwd_region_id"),
+                "dwd_teilregion": pollen.get("dwd_teilregion"),
+                "kreis": pollen.get("aktueller_kreis")
+            }
+
+        # 5. Vorhersage-Attribute für die einzelnen Pollen-Sensoren
+        if key.startswith("pollen_") and key != "pollen_gesamt":
+            p_key = key.replace("pollen_", "")
+            return {
+                "today": pollen.get(f"{p_key}_today", 0.0),
+                "tomorrow": pollen.get(f"{p_key}_tomorrow", 0.0),
+                "dayafter_to": pollen.get(f"{p_key}_dayafter_to", 0.0),
             }
 
         return None
