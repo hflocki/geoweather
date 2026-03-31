@@ -23,6 +23,7 @@ GeoWeather ist eine spezialisierte Home Assistant Integration für Wohnmobile un
 - 🚀 **Zero-Config:** Das Pollen-Region-Mapping ist nun fest integriert (keine `pollen_mapping.yaml` mehr nötig!)
 
 
+Wenn dir die integration gefällt, gib mir bitte einen Stern bei [github](https://github.com/hflocki/geoweather)
 ---
 
 ## Installation über HACS
