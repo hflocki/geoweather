@@ -24,7 +24,6 @@ from .const import (
     DOMAIN,
     DWD_EVENT_TYPES,
     DWD_SEVERITY,
-    POLLEN_REGION_MAPPING,
     POLLEN_TYPES,
     URL_DWD_POLLEN,
     URL_DWD_RADAR,
@@ -32,6 +31,7 @@ from .const import (
     URL_DWD_WARNINGS_GEMEINDE,
     URL_DWD_WARNINGS_KREIS,
 )
+from .mapping import POLLEN_REGION_MAPPING
 from .dwdradar import DWDRadar
 
 _LOGGER = logging.getLogger(__name__)
