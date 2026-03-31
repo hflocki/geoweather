@@ -22,9 +22,10 @@ GeoWeather ist eine spezialisierte Home Assistant Integration für Wohnmobile un
 - 🌧️ **Regenvorhersage:** Aktuelle Niederschlagsintensität + Forecast via DWD Radar
 - 🚀 **Zero-Config:** Das Pollen-Region-Mapping ist nun fest integriert (keine `pollen_mapping.yaml` mehr nötig!)
 
-
-Wenn dir die integration gefällt, gib mir bitte einen Stern bei [github](https://github.com/hflocki/geoweather)
 ---
+Wenn dir die integration gefällt, gib mir bitte einen Stern bei [github](https://github.com/hflocki/geoweather)
+
+
 
 ## Installation über HACS
 Diese Integration ist noch nicht im standardmäßigen HACS‑Store verfügbar. Du kannst sie jedoch trotzdem über HACS installieren, indem du sie als benutzerdefiniertes Repository hinzufügst.
