@@ -85,7 +85,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                         "dwd_region_id": "??",
                     }
 
-                # Wir fügen den Kreisnamen aus der Standortsuche direkt in das Pollen-Objekt ein
+                # Kreisnamen aus der Standortsuche direkt in das Pollen-Objekt einfügen
                 pollen["aktueller_kreis"] = kreis_name
 
                 regen = await self._fetch_radar(session, lat, lon)
@@ -111,7 +111,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         """Sucht die Region-ID und ruft DWD Daten ab."""
 
         # 1. ID aus dem Mapping holen (Mapping muss in der const.py stehen)
-        # Wir nutzen hier 'kreis' als Key, um die ID zu finden
+        #  'kreis' als Key nutzen, um die ID zu finden
         target_id = POLLEN_REGION_MAPPING.get(str(kreis).strip())
 
         if target_id is None:
