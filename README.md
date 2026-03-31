@@ -20,7 +20,7 @@ GeoWeather ist eine spezialisierte Home Assistant Integration für Wohnmobile un
 - ⛈️ **Wetterwarnungen:** Aktive Warnungen mit Schweregrad, Typ und Zeitraum
 - 🌿 **Pollenflug-Vorhersage:** NEU: Jetzt mit Vorhersage für **Heute / Morgen / Übermorgen**
 - 🌧️ **Regenvorhersage:** Aktuelle Niederschlagsintensität + Forecast via DWD Radar
-- 🚀 **Zero-Config:** Das Pollen-Region-Mapping ist nun fest integriert (keine `pollen_mapping.yaml` mehr nötig!)
+- 🚀 **Zero-Config:** Das Pollen-Region-Mapping ist nun fest integriert
 
 ---
 Wenn dir die integration gefällt, gib mir bitte einen Stern bei [github](https://github.com/hflocki/geoweather)
@@ -47,7 +47,7 @@ Kopiere den Ordner `custom_components/geoweather/` in dein `config/custom_compon
 ```
 config/custom_components/geoweather/
 ```
-Starte Homeassistant neu
+Starte Home Assistant neu
 
 ---
 
@@ -137,14 +137,21 @@ Die Integration liefert die offiziellen DWD-Grenzwerte. Für Dashboards empfehle
 
 ## 🗺 Pollen Region Mapping
 
-Da der DWD Pollendaten nach meteorologischen Regionen (z.B. "Rhein.-Westfäl. Tiefland") und nicht nach exakten Kreisen bereitstellt, nutzt GeoWeather ein Mapping. 
-Sollte dein Kreis nicht automatisch erkannt werden, kannst du eine `pollen_mapping.yaml` im `/config/` Ordner anlegen:
+❓ Was tun bei Fehlern?
+Obwohl über 430 Regionen fest integriert sind, kann es in seltenen Fällen vorkommen, dass ein Standortname nicht sofort gemappt werden kann (z. B. bei neuen Gebietsreformen).
 
-```yaml
-"Landkreis Harz": "Harz"
-"Wermelskirchen": "Rhein.-Westfäl. Tiefland"
-"München": "Allgäu/Oberbayern/Bay. Wald"
+Fehlermeldung im Log: "GeoWeather: Kein ID-Mapping für Ort 'XYZ' gefunden!"
+
+Lösung:
+Du kannst manuell eingreifen, indem du in die Datei mapping.py im Verzeichnis der integration diese Info einträgst (und hier als Issue meldest damit dies für das nächste Release mit drinn ist)
+
+```YAML
+"Dein Ort aus dem Log": "Passende DWD-Region"
+ "Hamburg": 12,
+ "Herzogtum Lauenburg": 12,
+ "Kiel": 12,
 ```
+* Wichtig Formatierung einhalten (4 leerzeichen vor den Wereten) 
 ---
 
 ## 🤖 Empfohlene Automatisierungen
