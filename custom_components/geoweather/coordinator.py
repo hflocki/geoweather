@@ -52,6 +52,11 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._radar_etag: str | None = None
         self._radar_bytes: bytes | None = None
         self.last_update_success_time = None
+        
+        _LOGGER.info(
+            "[Pollen Mapping Assistant] Datei erfolgreich eingelesen. %s Orte im Mapping gefunden.", 
+            len(self._pollen_mapping)
+        )
 
     async def _async_update_data(self) -> dict:
         if self._is_moving():
@@ -110,14 +115,13 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
     async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
         """Sucht die Region-ID und ruft DWD Daten ab."""
 
-        # 1. ID aus dem Mapping holen (Mapping muss in der const.py stehen)
-        #  'kreis' als Key nutzen, um die ID zu finden
+        suche_ort = str(kreis).strip()
         target_id = POLLEN_REGION_MAPPING.get(str(kreis).strip())
 
         if target_id is None:
             _LOGGER.warning(
                 "GeoWeather: Kein ID-Mapping für Ort '%s' gefunden! "
-                "Bitte in der const.py ergänzen.",
+                "Bitte in der mapping.py ergänzen.",
                 kreis,
             )
             return {f"{p.lower()}_today": 0.0 for p in POLLEN_TYPES}
