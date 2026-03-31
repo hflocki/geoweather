@@ -31,8 +31,8 @@ from .const import (
     URL_DWD_WARNINGS_GEMEINDE,
     URL_DWD_WARNINGS_KREIS,
 )
-from .mapping import POLLEN_REGION_MAPPING
 from .dwdradar import DWDRadar
+from .mapping import POLLEN_REGION_MAPPING
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,10 +52,10 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._radar_etag: str | None = None
         self._radar_bytes: bytes | None = None
         self.last_update_success_time = None
-        
+
         _LOGGER.info(
-            "[Pollen Mapping Assistant] Datei erfolgreich eingelesen. %s Orte im Mapping gefunden.", 
-            len(self._pollen_mapping)
+            "[Pollen Mapping Assistant] Datei erfolgreich eingelesen. %s Orte im Mapping gefunden.",
+            len(self._pollen_mapping),
         )
 
     async def _async_update_data(self) -> dict:
@@ -116,13 +116,24 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         """Sucht die Region-ID und ruft DWD Daten ab."""
 
         suche_ort = str(kreis).strip()
-        target_id = POLLEN_REGION_MAPPING.get(str(kreis).strip())
+
+        # DEBUG-LOG:
+        _LOGGER.debug("[Pollen Debug] Suche nach: '%s'", suche_ort)
+        _LOGGER.debug(
+            "[Pollen Debug] Vorhandene Orte im Mapping: %s",
+            list(self._pollen_mapping.keys()),
+        )
+
+        # ID aus dem Mapping holen
+        target_id = self._pollen_mapping.get(suche_ort)
 
         if target_id is None:
+            # Log was wurde geladen
             _LOGGER.warning(
                 "GeoWeather: Kein ID-Mapping für Ort '%s' gefunden! "
-                "Bitte in der mapping.py ergänzen.",
-                kreis,
+                "(Mapping enthält %s Einträge). Bitte in der mapping.py ergänzen.",
+                suche_ort,
+                len(self._pollen_mapping),
             )
             return {f"{p.lower()}_today": 0.0 for p in POLLEN_TYPES}
 
@@ -135,7 +146,6 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Pollen-Abruf fehlgeschlagen: %s", e)
             return {"dwd_teilregion": "Abruffehler"}
 
-        # Ergebnis-Container vorbereiten
         res = {"dwd_teilregion": "Unbekannt", "dwd_region_id": target_id}
         all_today_values = []
 
