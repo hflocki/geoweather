@@ -5,7 +5,7 @@
   "requirements": ["numpy"],
   "dependencies": [],
   "codeowners": ["@hflocki"],
-  "version": "1.1.5-alpha",
+  "version": "2.0.1",
   "integration_type": "service",
   "iot_class": "cloud_polling"
 }
