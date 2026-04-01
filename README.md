@@ -434,7 +434,7 @@ apex_config:
       style:
         colors: 'var(--secondary-text-color)'
 series:
-  - entity: sensor.geoweather_regenvorhersage
+  - entity: sensor.geoweather_niederschlag_aktuell
     name: Intensität
     unit: mm/h
     data_generator: |
