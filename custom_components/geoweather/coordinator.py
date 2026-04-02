@@ -124,7 +124,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             weather_data = (self.data or {}).get("location", {})
             self._last_move_time = now 
 
-        # --- POLLEN LOGIK ---
+        # --- TEIL B: POLLEN ---
         current_pos = (round(lat, 2), round(lon, 2))
         stand_time_min = (now - self._last_move_time).total_seconds() / 60
         
@@ -136,12 +136,19 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             is_forced or ((moved or is_time_for_daily) and stand_time_min >= arrival_delay)
         )
 
+        # WICHTIG: Wir holen den Kreisnamen IMMER, damit die Attribute aktuell bleiben
+        try:
+            async with aiohttp.ClientSession() as session:
+                loc_for_pollen = await self._fetch_location(session, lat, lon)
+                kreis_name = loc_for_pollen.get("kreis", "Unbekannt")
+        except:
+            kreis_name = "Unbekannt"
+
         if pollen_should_update:
             try:
                 async with aiohttp.ClientSession() as session:
-                    loc = await self._fetch_location(session, lat, lon)
-                    kreis_name = loc.get("kreis", "Unbekannt")
                     pollen_data = await self._fetch_pollen(session, kreis_name)
+                    # Hier speichern wir die neuen Daten
                     self.pollen_cache = pollen_data
                     self.last_pollen_pos = current_pos
                     self.last_pollen_date = now.date()
@@ -151,6 +158,9 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 pollen_data = self.pollen_cache
         else:
             pollen_data = self.pollen_cache
+
+        # JETZT: Den Kreis GARANTIERT in die Daten schreiben, egal ob Cache oder Neu
+        pollen_data["aktueller_kreis"] = kreis_name
 
         # WIND INFO EXTRAHIEREN
         wind_info = self._extract_wind_info(warnings_data.get("warnungen", []))
