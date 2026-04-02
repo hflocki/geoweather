@@ -97,7 +97,7 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 vol.Optional(
                     CONF_ARRIVAL_DELAY, 
-                    default=self.config_entry.options.get(CONF_ARRIVAL_DELAY, DEFAULT_ARRIVAL_DELAY)
+                    default=DEFAULT_ARRIVAL_DELAY  # Direkt die Konstante nutzen
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=0, 
@@ -171,7 +171,7 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
 
                 vol.Optional(
                     CONF_ARRIVAL_DELAY, 
-                    default=self.config_entry.options.get(CONF_ARRIVAL_DELAY, DEFAULT_ARRIVAL_DELAY)
+                    default=merged.get(CONF_ARRIVAL_DELAY, DEFAULT_ARRIVAL_DELAY)
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=0, 
