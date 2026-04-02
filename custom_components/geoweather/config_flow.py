@@ -44,9 +44,9 @@ def _number(min_, max_, step, unit):
     """Hilfsfunktion für Zahlen-Eingabefelder."""
     return selector.NumberSelector(
         selector.NumberSelectorConfig(
-            min=float(min_), # Sicherstellen, dass 0.0 erlaubt ist
-            max=float(max_),
-            step=float(step),
+            min=min_,
+            max=max_,
+            step=step,
             unit_of_measurement=unit,
             mode=selector.NumberSelectorMode.BOX,
         )
