@@ -62,7 +62,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._last_move_time: datetime = datetime.now()
         self._force_pollen_update: bool = False
 
-async def _async_update_data(self) -> dict:
+    async def _async_update_data(self) -> dict:
         """Main update cycle - v2.3.0 Intelligence."""
         now = datetime.now()
         
