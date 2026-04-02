@@ -1,67 +1,163 @@
 from __future__ import annotations
+
 from datetime import datetime
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
 from .const import DOMAIN
 
 POLLEN_TYPES = [
-    ("birke", "Pollen Birke"), ("graeser", "Pollen Gräser"), ("roggen", "Pollen Roggen"),
-    ("erle", "Pollen Erle"), ("hasel", "Pollen Hasel"), ("esche", "Pollen Esche"),
-    ("beifuss", "Pollen Beifuß"), ("ambrosia", "Pollen Ambrosia"), ("eiche", "Pollen Eiche"),
+    ("birke", "Pollen Birke"),
+    ("graeser", "Pollen Gräser"),
+    ("roggen", "Pollen Roggen"),
+    ("erle", "Pollen Erle"),
+    ("hasel", "Pollen Hasel"),
+    ("esche", "Pollen Esche"),
+    ("beifuss", "Pollen Beifuß"),
+    ("ambrosia", "Pollen Ambrosia"),
+    ("eiche", "Pollen Eiche"),
 ]
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
     # 1. Regen- & Wetter-Sensoren
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="niederschlag_aktuell", name="Niederschlag aktuell",
-        native_unit_of_measurement="mm/h", device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
-        state_class=SensorStateClass.MEASUREMENT, icon="mdi:weather-pouring"
-    )))
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="regenvorhersage", name="Regenvorhersage", icon="mdi:weather-clock"
-    )))
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="niederschlag_aktuell",
+                name="Niederschlag aktuell",
+                native_unit_of_measurement="mm/h",
+                device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
+                state_class=SensorStateClass.MEASUREMENT,
+                icon="mdi:weather-pouring",
+            ),
+        )
+    )
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="regenvorhersage", name="Regenvorhersage", icon="mdi:weather-clock"
+            ),
+        )
+    )
 
     # 2. Standort & Warnungen
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="standort", name="Aktueller Standort", icon="mdi:map-marker-radius"
-    )))
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="warnungen_anzahl", name="Wetterwarnungen Anzahl", icon="mdi:alert-decagram"
-    )))
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="standort", name="Aktueller Standort", icon="mdi:map-marker-radius"
+            ),
+        )
+    )
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="warnungen_anzahl",
+                name="Wetterwarnungen Anzahl",
+                icon="mdi:alert-decagram",
+            ),
+        )
+    )
 
     # 3. Pollen-Sensoren
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="pollen_gesamt", name="Pollenbelastung Gesamt", icon="mdi:flower"
-    )))
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="pollen_gesamt", name="Pollenbelastung Gesamt", icon="mdi:flower"
+            ),
+        )
+    )
     for key, name in POLLEN_TYPES:
-        entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-            key=f"pollen_{key}", name=name, icon="mdi:sprout"
-        )))
+        entities.append(
+            GeoWeatherSensor(
+                coordinator,
+                entry,
+                SensorEntityDescription(
+                    key=f"pollen_{key}", name=name, icon="mdi:sprout"
+                ),
+            )
+        )
 
     # 4. Technik-Sensoren
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="letztes_update", name="Letztes Update", 
-        device_class=SensorDeviceClass.TIMESTAMP, icon="mdi:update"
-    )))
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="letztes_update",
+                name="Letztes Update",
+                device_class=SensorDeviceClass.TIMESTAMP,
+                icon="mdi:update",
+            ),
+        )
+    )
 
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="warn_region", name="DWD Warnregion", icon="mdi:map-check"
-    )))
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="warn_region", name="DWD Warnregion", icon="mdi:map-check"
+            ),
+        )
+    )
 
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="wind_status", name="Wind Warnstatus", icon="mdi:weather-windy"
-    )))
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="wind_status", name="Wind Warnstatus", icon="mdi:weather-windy"
+            ),
+        )
+    )
+
+    # 5. DWD-Kompatibilitäts-Sensoren für NINA-Card
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="current_warning_level",
+                name="Aktuelle Warnstufe",
+                icon="mdi:alert-decagram",
+            ),
+        )
+    )
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="advance_warning_level",
+                name="Vorwarnstufe",
+                icon="mdi:alert-outline",
+            ),
+        )
+    )
 
     async_add_entities(entities)
+
 
 class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, entry, description):
@@ -81,33 +177,40 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data
-        if not data: return None
+        if not data:
+            return None
         key = self.entity_description.key
 
         # 1. Radar & Regen
         regen = data.get("regen", {})
-        if key == "niederschlag_aktuell": return regen.get("aktuell", 0.0)
-        
-        if key == "regenvorhersage": 
+        if key == "niederschlag_aktuell":
+            return regen.get("aktuell", 0.0)
+
+        if key == "regenvorhersage":
             val = regen.get("next_start")
             # Falls kein Regen kommt, geben wir einen Text zurück, damit das Icon bleibt
             return val if val is not None else "Kein Regen"
 
         # 2. Standort & Warnungen
         loc = data.get("location", {})
-        if key == "standort": return loc.get("gemeinde") or loc.get("kreis") or "Unbekannt"
-        
-        if key == "warn_region": 
+        if key == "standort":
+            return loc.get("gemeinde") or loc.get("kreis") or "Unbekannt"
+
+        if key == "warn_region":
             return loc.get("warn_region_name") or loc.get("kreis") or "Unbekannt"
-            
-        if key == "warnungen_anzahl": 
+
+        if key == "warnungen_anzahl":
             return data.get("warnings", {}).get("anzahl", 0)
 
         # 3. Pollen
         pollen = data.get("pollen", {})
         if key == "pollen_gesamt":
             # Berechnet das Maximum aller Pollenarten für heute
-            vals = [v for k, v in pollen.items() if k.endswith("_today") and isinstance(v, (int, float))]
+            vals = [
+                v
+                for k, v in pollen.items()
+                if k.endswith("_today") and isinstance(v, (int, float))
+            ]
             return max(vals) if vals else 0.0
 
         if key.startswith("pollen_"):
@@ -125,46 +228,51 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
 
         return None
 
+        # Status muss das maximale Level (0-4) sein
+        if key in ["current_warning_level", "advance_warning_level"]:
+            warn_list = data.get("warnings", {}).get("warnungen", [])
+            if not warn_list:
+                return 0
+            # Wir geben das höchste Schwere-Level zurück
+            return max(w.get("schwere_level", 0) for w in warn_list)
+
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data
-        if not data: 
+        if not data:
             return None
-        
+
         key = self.entity_description.key
         pollen = data.get("pollen", {})
 
         # 1. Radar Attribute
         if key == "niederschlag_aktuell":
             return {"forecast": data.get("regen", {}).get("forecast", {})}
-        
+
         if key == "regenvorhersage":
             regen = data.get("regen", {})
             return {
                 "next_end": regen.get("next_end"),
                 "next_length_min": regen.get("next_length"),
                 "next_max_mmh": regen.get("next_max_mmh"),
-                "next_sum_mm": regen.get("next_sum_mm")
+                "next_sum_mm": regen.get("next_sum_mm"),
             }
-            
+
         # 2. Warnungs Attribute
         if key == "warnungen_anzahl":
             return {"aktive_warnungen": data.get("warnings", {}).get("warnungen", [])}
-        
+
         # 3. Standort Attribute
         if key == "standort":
             loc = data.get("location", {})
-            return {
-                "kreis": loc.get("kreis"),
-                "warncellid": loc.get("warncellid")
-            }
+            return {"kreis": loc.get("kreis"), "warncellid": loc.get("warncellid")}
 
         # 4. Pollen Attribute für den Gesamt-Sensor
         if key == "pollen_gesamt":
             return {
                 "dwd_region_id": pollen.get("dwd_region_id"),
                 "dwd_teilregion": pollen.get("dwd_teilregion"),
-                "kreis": pollen.get("aktueller_kreis")
+                "kreis": pollen.get("aktueller_kreis"),
             }
 
         # 5. Vorhersage-Attribute für die einzelnen Pollen-Sensoren
@@ -175,7 +283,7 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "tomorrow": pollen.get(f"{p_key}_tomorrow", 0.0),
                 "dayafter_to": pollen.get(f"{p_key}_dayafter_to", 0.0),
             }
-            
+
         # 6. Wind Attribute
         if key == "wind_status":
             wind = data.get("wind", {})
@@ -183,7 +291,28 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "speed_max": wind.get("speed_max", 0),
                 "level": wind.get("level", 0),
                 "description": wind.get("description", ""),
-                "unit": "km/h"
+                "unit": "km/h",
             }
 
         return None
+
+        if key == "current_warning_level":
+            warn_list = data.get("warnings", {}).get("warnungen", [])
+            attrs = {
+                "warning_count": len(warn_list),
+                "region_name": data.get("location", {}).get("kreis", "Unbekannt"),
+                "region_id": data.get("location", {}).get("warncellid", ""),
+            }
+
+            for i, warn in enumerate(warn_list, 1):
+                attrs[f"warning_{i}_name"] = warn.get("ereignis")
+                attrs[f"warning_{i}_level"] = warn.get("schwere_level")
+                attrs[f"warning_{i}_type"] = warn.get("ereignis")
+                attrs[f"warning_{i}_start"] = warn.get("beginn")
+                attrs[f"warning_{i}_end"] = warn.get("ende")
+                attrs[f"warning_{i}_headline"] = warn.get("headline")
+                attrs[f"warning_{i}_description"] = warn.get("beschreibung")
+                # Die Karte nutzt oft 'instruction' für Handlungsanweisungen
+                attrs[f"warning_{i}_instruction"] = ""
+
+            return attrs
