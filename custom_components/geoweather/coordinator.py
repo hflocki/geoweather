@@ -59,12 +59,12 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self.last_pollen_date: date | None = None
         self.last_pollen_pos: tuple[float, float] = (0.0, 0.0)
         self.pollen_cache: dict = {}
-        self._last_move_time: datetime = datetime.now()
+        self._last_move_time: datetime = datetime.now(timezone.utc)
         self._force_pollen_update: bool = False
 
     async def _async_update_data(self) -> dict:
         """Main update cycle - v2.3.0 Intelligence."""
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         
         # 1. GPS Fix & Koordinaten prüfen (Sicherheit geht vor)
         if not self._has_valid_fix():
@@ -83,11 +83,13 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         is_moving = self._is_moving()
         arrival_delay = self._cfg(CONF_ARRIVAL_DELAY, DEFAULT_ARRIVAL_DELAY)
 
-        # --- TEIL A: WETTER, RADAR, WARNUNGEN ---
-        # Fallback auf bestehende Daten, falls wir gerade fahren
-        weather_data = self.data.get("location", {})
-        radar_data = self.data.get("radar", {})
-        warnings_data = self.data.get("warnings", {})
+# --- TEIL A: WETTER, RADAR, WARNUNGEN ---
+        # Fallback auf bestehende Daten (oder ein leeres Dict beim ersten Start)
+        current_data = self.data if self.data is not None else {}
+        
+        weather_data = current_data.get("location", {})
+        radar_data = current_data.get("radar", {})
+        warnings_data = current_data.get("warnings", {})
 
         if not is_moving:
             try:
@@ -103,13 +105,16 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
             except Exception as exc:
                 _LOGGER.error("Fehler beim Wetter-Abruf: %s", exc)
         else:
-            # Während der Fahrt: Ankunfts-Timer ständig zurücksetzen
+            # Während der Fahrt alte Daten aus dem Cache nehmen
+            weather_data = (self.data or {}).get("location", {})
+            # Nutze hier einfach das 'now' von oben
             self._last_move_time = now 
-            self.last_skip_reason = "Fahrt aktiv"
             _LOGGER.info("GeoWeather v2.3.0: Wetter-Update pausiert (Fahrt).")
 
         # --- TEIL B: POLLEN (Die intelligente Wohnwagen-Logik) ---
         current_pos = (round(lat, 2), round(lon, 2))
+        
+        # Jetzt sind beide Seiten (now und _last_move_time) UTC-aware:
         stand_time_min = (now - self._last_move_time).total_seconds() / 60
         
         # Bedingungen für Pollen-Update:
