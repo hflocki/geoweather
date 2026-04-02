@@ -29,6 +29,23 @@ action:
     data: {}
 mode: skip
 
+
+alias: "Sicherheit: Markise bei Wind einfahren"
+description: ""
+triggers:
+  - entity_id: sensor.geoweather_wind_max_speed
+    above: 45
+    trigger: numeric_state
+actions:
+  - data:
+      title: Windwarnung am Stellplatz!
+      message: >-
+        Böen bis {{ state_attr('sensor.geoweather_wind_status', 'speed_max') }}
+        km/h erwartet. Markise sichern!
+    action: notify.mobile_app_handy
+
+
+
 ---
 
 # =============================================================================
