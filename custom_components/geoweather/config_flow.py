@@ -92,6 +92,18 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
                 ): _number(0, 1440, 5, "Minuten"),
+
+                vol.Optional(
+                    CONF_ARRIVAL_DELAY, 
+                    default=self.config_entry.options.get(CONF_ARRIVAL_DELAY, DEFAULT_ARRIVAL_DELAY)
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0, 
+                        max=60, 
+                        unit_of_measurement="min", 
+                        mode=selector.NumberSelectorMode.SLIDER
+                    )
+                ),
             }
         )
 
@@ -154,6 +166,18 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
                     CONF_UPDATE_INTERVAL,
                     default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
                 ): _number(5, 1440, 5, "Min"),
+
+                vol.Optional(
+                    CONF_ARRIVAL_DELAY, 
+                    default=self.config_entry.options.get(CONF_ARRIVAL_DELAY, DEFAULT_ARRIVAL_DELAY)
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0, 
+                        max=60, 
+                        unit_of_measurement="min", 
+                        mode=selector.NumberSelectorMode.SLIDER
+                    )
+                ),
             }
         )
 
