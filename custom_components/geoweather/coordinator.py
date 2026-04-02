@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for GeoWeather v2.2.0."""
+"""DataUpdateCoordinator for GeoWeather v2.3.0."""
 
 from __future__ import annotations
 
