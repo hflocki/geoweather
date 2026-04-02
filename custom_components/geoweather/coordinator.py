@@ -56,6 +56,7 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._radar_bytes: bytes | None = None
         
         # --- v2.3.0 Pollen Trackers ---
+        self._pollen_mapping = POLLEN_REGION_MAPPING
         self.last_pollen_date: date | None = None
         self.last_pollen_pos: tuple[float, float] = (0.0, 0.0)
         self.pollen_cache: dict = {}
