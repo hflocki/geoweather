@@ -1,0 +1,266 @@
+###############################################################################
+# GeoWeather v2.3.0
+# Diese Datei enthält alle Automatisierungen und Dashboard-Karten.
+###############################################################################
+
+# =============================================================================
+# 🤖 AUTOMATISIERUNGEN (Optimiert für v2.3.0)
+# =============================================================================
+
+# HINWEIS: In v2.3.0 übernimmt die Integration das Warten nach der Ankunft
+# (Arrival Delay) selbst. Diese Automation triggert nur noch den Abruf.
+
+alias: "GeoWeather: Zentraler Update-Trigger"
+description: "Triggert Updates im Stand. Die Standzeit-Sperre liegt im Coordinator."
+id: geoweather_v230_core_trigger
+trigger:
+  - platform: time_pattern
+    minutes: "/10"  # Prüft alle 10 Min auf Regen/Warnungen
+  - platform: state
+    entity_id: binary_sensor.geoweather_moving
+    from: "on"
+    to: "off"
+condition:
+  - condition: state
+    entity_id: binary_sensor.geoweather_moving
+    state: "off"
+action:
+  - action: geoweather.update
+    data: {}
+mode: skip
+
+# Automation für Windwarnungen als Notification senden
+alias: "Sicherheit: Markise bei Wind einfahren"
+description: "Reagiert auf die Windgeschwindigkeit in den Attributen"
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.geoweather_wind_warnstatus
+    attribute: speed_max  
+    above: 45
+actions:
+  - action: notify.mobile_app_dein_handy # Beispiel-Aktion
+    data:
+      title: "Windwarnung!"
+      message: "Böen bis zu {{ state_attr('sensor.geoweather_wind_warnstatus', 'speed_max') }} km/h erkannt!"
+---
+
+# =============================================================================
+# 🌦️ DASHBOARD: REGEN & STANDORT
+# =============================================================================
+
+# 1. Regenvorhersage (Mushroom Style)
+type: custom:mushroom-template-card
+primary: |
+  {% set regenzustand = states('sensor.geoweather_regenvorhersage') %}
+  {% if regenzustand == 'Kein Regen' %} Alles trocken {% else %}
+    Regen ab {{ as_timestamp(regenzustand) | timestamp_custom('%H:%M') }} Uhr
+  {% endif %}
+secondary: |
+  {% set mm = state_attr('sensor.geoweather_regenvorhersage', 'next_sum_mm') | float(0) %}
+  {% if mm > 0 %}
+    Menge: {{ mm }} mm | Dauer: {{ state_attr('sensor.geoweather_regenvorhersage', 'next_length_min') }} min
+  {% else %}
+    Intensität: {{ states('sensor.geoweather_niederschlag_aktuell') }} mm/h
+  {% endif %}
+icon: mdi:weather-pouring
+icon_color: "{{ 'disabled' if states('sensor.geoweather_regenvorhersage') == 'Kein Regen' else 'blue' }}"
+entity: sensor.geoweather_regenvorhersage
+tap_action:
+  action: more-info
+
+---
+
+# 2. Visualisierung (2h ApexChart)
+type: custom:apexcharts-card
+header:
+  show: true
+  title: Regenvorhersage (Nächste 2 Stunden)
+  show_states: true
+graph_span: 2h
+span:
+  start: minute
+series:
+  - entity: sensor.geoweather_niederschlag_aktuell
+    name: Intensität
+    unit: mm/h
+    data_generator: |
+      const forecast = entity.attributes.forecast;
+      if (!forecast) return [];
+      return Object.entries(forecast).map(([time, value]) => {
+        return [new Date(time).getTime(), value];
+      });
+    type: area
+    color: '#03a9f4'
+    curve: smooth
+
+---
+
+# =============================================================================
+# ⚠️ DASHBOARD: WETTERWARNUNGEN
+# =============================================================================
+
+# 1. Warnungs-Icon (Dynamische Farbe & Blink-Effekt)
+type: custom:button-card
+entity: sensor.geoweather_wetterwarnungen_anzahl
+aspect_ratio: 1/1
+show_label: true
+label: |
+  [[[ 
+    const warnings = entity.attributes.warnungen;
+    if (!warnings || warnings.length === 0) return 'Alles ok';
+    return warnings[0].ereignis; 
+  ]]]
+icon: |
+  [[[ return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' : 'mdi:shield-check'; ]]]
+styles:
+  card:
+    - background-color: |
+        [[[ 
+          const warnings = entity.attributes.warnungen;
+          if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
+          const level = warnings[0].schwere_level;
+          if (level <= 1) return '#ffeb3b';
+          if (level === 2) return '#fb8c00';
+          if (level >= 3) return '#e53935';
+          return 'var(--card-background-color)';
+        ]]]
+  icon:
+    - animation: |
+        [[[ return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out infinite' : 'none'; ]]]
+
+---
+
+# 2. Warnungs-Details (Markdown-Liste)
+type: markdown
+content: |
+  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen_anzahl', 'warnungen') %}
+  {% if warnungen %}
+    {% for w in warnungen %}
+    ### ⚠️ {{ w.ereignis }} ({{ w.schwere }})
+    **{{ w.headline }}**
+    *🕒 {{ as_timestamp(w.beginn) | timestamp_custom('%H:%M') }} - {{ as_timestamp(w.ende) | timestamp_custom('%H:%M Uhr') }}*
+    > {{ w.beschreibung }}
+    ---
+    {% endfor %}
+  {% else %}
+    *Aktuell liegen keine Warnmeldungen vor.*
+  {% endif %}
+
+---
+# 3. Wind Warnung als Kachel
+type: custom:button-card
+entity: sensor.geoweather_wind_warnstatus
+name: Wind-Sicherheit
+show_state: true
+show_label: true
+label: |
+  [[[ 
+    return states['sensor.geoweather_wind_warnstatus'].attributes.speed_max + ' km/h';
+  ]]]
+styles:
+  card:
+    - height: 100px
+    - background-color: |
+        [[[
+          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          if (level == 0) return 'rgba(0, 255, 0, 0.1)';
+          if (level <= 2) return 'rgba(255, 165, 0, 0.2)';
+          return 'rgba(255, 0, 0, 0.3)';
+        ]]]
+    - border: |
+        [[[
+          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          if (level == 0) return '1px solid green';
+          if (level <= 2) return '2px solid orange';
+          return '3px solid red';
+        ]]]
+  icon:
+    - color: |
+        [[[
+          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          if (level == 0) return 'green';
+          if (level <= 2) return 'orange';
+          return 'red';
+        ]]]
+---
+
+# =============================================================================
+# 🌸 DASHBOARD: POLLENFLUG
+# =============================================================================
+
+# 1. Pollen-Hauptkarte (Gesamtbelastung)
+type: custom:button-card
+entity: sensor.geoweather_pollenbelastung_gesamt
+aspect_ratio: 1/1
+name: Pollenflug
+show_state: true
+state_display: |
+  [[[
+    const s = parseFloat(entity.state);
+    if (s === 0) return 'Keine';
+    if (s <= 1.5) return 'Gering';
+    if (s <= 2.5) return 'Mittel';
+    return 'Stark';
+  ]]]
+styles:
+  card:
+    - background-color: |
+        [[[
+          const val = parseFloat(entity.state);
+          if (val <= 1.5) return '#ffeb3b';
+          if (val <= 2.5) return '#fb8c00';
+          if (val > 2.5)  return '#e53935';
+          return 'var(--card-background-color)';
+        ]]]
+
+---
+
+# 2. Detaillierte Pollen-Übersicht (Grid mit Button-Templates)
+type: vertical-stack
+cards:
+  - type: grid
+    columns: 3
+    square: true
+    cards:
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollen_birke
+        name: Birke
+        icon: mdi:tree
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollen_graser
+        name: Gräser
+        icon: mdi:grass
+      - type: custom:button-card
+        template: pollen_style
+        entity: sensor.geoweather_pollen_roggen
+        name: Roggen
+        icon: mdi:barley
+      # ... hier die weiteren Sensoren analog einfügen ...
+
+---
+
+# =============================================================================
+# 🎨 TEMPLATES (Muss in die Dashboard 'Raw-Konfiguration')
+# =============================================================================
+# button_card_templates:
+  pollen_style:
+    aspect_ratio: 1/1
+    show_label: true
+    styles:
+      icon:
+        - color: |
+            [[[
+              const v = parseFloat(entity.state);
+              if (v <= 1) return '#c5e566';
+              if (v <= 2) return '#ffeb3b';
+              if (v <= 4) return '#fb8c00';
+              return '#e53935';
+            ]]]
+    label: |
+      [[[
+        const h = entity.state;
+        const m = entity.attributes.tomorrow || '?';
+        return "H: " + h + " | M: " + m;
+      ]]]

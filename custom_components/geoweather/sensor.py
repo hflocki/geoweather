@@ -57,6 +57,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
         key="warn_region", name="DWD Warnregion", icon="mdi:map-check"
     )))
 
+    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
+        key="wind_status", name="Wind Warnstatus", icon="mdi:weather-windy"
+    )))
+
     async_add_entities(entities)
 
 class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
@@ -110,6 +114,9 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
             p_key = key.replace("pollen_", "")
             # Holt den Wert für heute (z.B. birke_today)
             return pollen.get(f"{p_key}_today", 0.0)
+
+        if key == "wind_status":
+            return data.get("wind", {}).get("type", "Normal")
 
         # 4. Technik
         if key == "letztes_update":
@@ -167,6 +174,16 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "today": pollen.get(f"{p_key}_today", 0.0),
                 "tomorrow": pollen.get(f"{p_key}_tomorrow", 0.0),
                 "dayafter_to": pollen.get(f"{p_key}_dayafter_to", 0.0),
+            }
+            
+        # 6. Wind Attribute
+        if key == "wind_status":
+            wind = data.get("wind", {})
+            return {
+                "speed_max": wind.get("speed_max", 0),
+                "level": wind.get("level", 0),
+                "description": wind.get("description", ""),
+                "unit": "km/h"
             }
 
         return None
