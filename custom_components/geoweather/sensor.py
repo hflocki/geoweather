@@ -115,6 +115,9 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
             # Holt den Wert für heute (z.B. birke_today)
             return pollen.get(f"{p_key}_today", 0.0)
 
+        if key == "wind_status":
+            return data.get("wind", {}).get("type", "Normal")
+        
         # 4. Technik
         if key == "letztes_update":
             val = data.get("last_updated")
