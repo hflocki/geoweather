@@ -2,8 +2,13 @@ update:
   name: Standort & Wetter aktualisieren
   description: >
     Ruft alle DWD-APIs erneut ab (Standort, Warnungen, Pollenflug).
-    Wird automatisch ignoriert wenn der GeoWeather fährt (Geschwindigkeit > Schwellenwert)
+    Wird automatisch ignoriert, wenn GeoWeather fährt (Geschwindigkeit > Schwellenwert)
     oder der GPS-Fix unzureichend ist (Satelliten < Minimum).
-    Rufe diesen Service aus einer Automation heraus auf – z. B. wenn sich die
-    GPS-Position geändert hat oder in einem festen Zeitintervall.
+  fields: {}
+
+update_pollen_now:
+  name: Pollenflug sofort aktualisieren
+  description: >
+    Erzwingt ein sofortiges Update der Pollendaten vom DWD, unabhängig von der 
+    12-Uhr-Regel oder der Ankunfts-Verzögerung. Funktioniert nur im Stillstand.
   fields: {}
