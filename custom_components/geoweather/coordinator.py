@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, date, timezone
 
 import aiohttp
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -18,9 +18,11 @@ from .const import (
     CONF_SPEED_SENSOR,
     CONF_SPEED_THRESHOLD,
     CONF_UPDATE_INTERVAL,
+    CONF_ARRIVAL_DELAY,
     DEFAULT_MIN_SATELLITES,
     DEFAULT_SPEED_THRESHOLD,
     DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_ARRIVAL_DELAY,
     DOMAIN,
     DWD_EVENT_TYPES,
     DWD_SEVERITY,
@@ -38,7 +40,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class GeoWeatherCoordinator(DataUpdateCoordinator):
-    """Central hub for location, warnings, pollen and radar data."""
+    """Central hub for location, warnings, pollen and radar data - v2.3.0."""
 
     def __init__(self, hass: HomeAssistant, entry) -> None:
         """Initialize the coordinator."""
@@ -47,67 +49,118 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval)
         self.entry = entry
+        
+        # --- State Trackers ---
         self.last_skip_reason: str | None = None
-        self._pollen_mapping = POLLEN_REGION_MAPPING
         self._radar_etag: str | None = None
         self._radar_bytes: bytes | None = None
+        
+        # --- v2.3.0 Pollen Trackers ---
+        self.last_pollen_date: date | None = None
+        self.last_pollen_pos: tuple[float, float] = (0.0, 0.0)
+        self.pollen_cache: dict = {}
+        self._last_move_time: datetime = datetime.now()
+        self._force_pollen_update: bool = False
 
-    async def _async_update_data(self) -> dict:
-        """Main update cycle - Clean Version."""
-
-        # 1. Check Movement
-        if self._is_moving():
-            self.last_skip_reason = "Fahrt aktiv (Speed > Threshold)"
-            _LOGGER.info("GeoWeather: Update übersprungen - %s", self.last_skip_reason)
-            return self.data or {}
-
-        # 2. Check GPS Fix
+async def _async_update_data(self) -> dict:
+        """Main update cycle - v2.3.0 Intelligence."""
+        now = datetime.now()
+        
+        # 1. GPS Fix & Koordinaten prüfen (Sicherheit geht vor)
         if not self._has_valid_fix():
             self.last_skip_reason = "Kein GPS-Fix (Sats < Min)"
-            _LOGGER.info("GeoWeather: Update übersprungen - %s", self.last_skip_reason)
+            _LOGGER.info("GeoWeather: Update pausiert - %s", self.last_skip_reason)
             return self.data or {}
 
-        # 3. Get Coordinates from Sensors
         lat = self._float_state(self._cfg(CONF_LAT_SENSOR))
         lon = self._float_state(self._cfg(CONF_LON_SENSOR))
-
+        
         if lat is None or lon is None:
-            self.last_skip_reason = "Koordinaten fehlen (Sensor-Fehler)"
-            _LOGGER.info("GeoWeather: Update übersprungen - %s", self.last_skip_reason)
+            self.last_skip_reason = "Koordinaten fehlen"
+            _LOGGER.info("GeoWeather: Update pausiert - %s", self.last_skip_reason)
             return self.data or {}
 
-        self.last_skip_reason = None
+        is_moving = self._is_moving()
+        arrival_delay = self._cfg(CONF_ARRIVAL_DELAY, DEFAULT_ARRIVAL_DELAY)
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                # Fetch all required data
-                location = await self._fetch_location(session, lat, lon)
-                warnings = await self._fetch_warnings(session, lat, lon)
+        # --- TEIL A: WETTER, RADAR, WARNUNGEN ---
+        # Fallback auf bestehende Daten, falls wir gerade fahren
+        weather_data = self.data.get("location", {})
+        radar_data = self.data.get("radar", {})
+        warnings_data = self.data.get("warnings", {})
 
-                kreis_name = location.get("kreis", "Unbekannt")
-                pollen = await self._fetch_pollen(session, kreis_name)
-                pollen["aktueller_kreis"] = kreis_name
+        if not is_moving:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    # Diese Daten laden wir im Stand bei jedem Intervall (z.B. 10 Min)
+                    location = await self._fetch_location(session, lat, lon)
+                    warnings_data = await self._fetch_warnings(session, lat, lon)
+                    radar_data = await self._fetch_radar(session, lat, lon)
+                    weather_data = location 
+                    
+                    self.last_skip_reason = None
+                    _LOGGER.info("GeoWeather v2.3.0: Wetter/Warnungen/Radar aktualisiert.")
+            except Exception as exc:
+                _LOGGER.error("Fehler beim Wetter-Abruf: %s", exc)
+        else:
+            # Während der Fahrt: Ankunfts-Timer ständig zurücksetzen
+            self._last_move_time = now 
+            self.last_skip_reason = "Fahrt aktiv"
+            _LOGGER.info("GeoWeather v2.3.0: Wetter-Update pausiert (Fahrt).")
 
-                radar = await self._fetch_radar(session, lat, lon)
+        # --- TEIL B: POLLEN (Die intelligente Wohnwagen-Logik) ---
+        current_pos = (round(lat, 2), round(lon, 2))
+        stand_time_min = (now - self._last_move_time).total_seconds() / 60
+        
+        # Bedingungen für Pollen-Update:
+        moved = current_pos != self.last_pollen_pos
+        is_time_for_daily = now.hour >= 12 and self.last_pollen_date != now.date()
+        is_forced = self._force_pollen_update
 
-                # Ein einziger kurzer Log-Eintrag bei Erfolg reicht meistens aus
-                _LOGGER.info(
-                    "GeoWeather: Daten erfolgreich für %s aktualisiert.", kreis_name
-                )
+        # Entscheidung: Update nur wenn im Stand UND (Manuell ODER (Grund vorhanden UND Wartezeit um))
+        pollen_should_update = not is_moving and (
+            is_forced or (
+                (moved or is_time_for_daily) and stand_time_min >= arrival_delay
+            )
+        )
 
-                return {
-                    "location": location,
-                    "radar": radar,
-                    "warnings": warnings,
-                    "pollen": pollen,
-                    "gps": {"latitude": lat, "longitude": lon},
-                    "last_updated": datetime.now(timezone.utc).isoformat(),
-                }
+        if pollen_should_update:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    # Wir holen den Kreisnamen frisch (für das Mapping)
+                    loc = await self._fetch_location(session, lat, lon)
+                    kreis_name = loc.get("kreis", "Unbekannt")
+                    
+                    # Deine umfangreiche Pollen-Logik (unverändert!)
+                    pollen_data = await self._fetch_pollen(session, kreis_name)
+                    pollen_data["aktueller_kreis"] = kreis_name
+                    
+                    # Cache und Tracking-Variablen setzen
+                    self.pollen_cache = pollen_data
+                    self.last_pollen_pos = current_pos
+                    self.last_pollen_date = now.date()
+                    self._force_pollen_update = False
+                    
+                    _LOGGER.info(
+                        "GeoWeather v2.3.0: Pollen-Update durchgeführt (Grund: %s)",
+                        "Manuell" if is_forced else f"Ankunft nach {round(stand_time_min)} Min Standzeit"
+                    )
+            except Exception as exc:
+                _LOGGER.error("Pollen-Abruf fehlgeschlagen: %s", exc)
+                pollen_data = self.pollen_cache
+        else:
+            pollen_data = self.pollen_cache
 
-        except Exception as exc:
-            _LOGGER.error("GeoWeather: DWD-Abruf fehlgeschlagen: %s", exc)
-            raise UpdateFailed(f"DWD Error: {exc}")
-
+        # --- FINALES DICT ---
+        return {
+            "location": weather_data,
+            "radar": radar_data,
+            "warnings": warnings_data,
+            "pollen": pollen_data,
+            "gps": {"latitude": lat, "longitude": lon},
+            "last_updated": now.isoformat(),
+        }
+    
     async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
         """Sucht die Region-ID und ruft DWD Daten ab."""
         suche_ort = str(kreis).strip()
