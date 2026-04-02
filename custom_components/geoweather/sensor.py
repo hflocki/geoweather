@@ -117,7 +117,7 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
 
         if key == "wind_status":
             return data.get("wind", {}).get("type", "Normal")
-        
+
         # 4. Technik
         if key == "letztes_update":
             val = data.get("last_updated")
