@@ -381,7 +381,6 @@ POLLEN_REGION_MAPPING = {
     "Ingolstadt": 123,
     "Kaufbeuren": 123,
     "Kelheim": 123,
-    "Kitzingen": 123,
     "Kreis und Stadt Ansbach": 123,
     "Kreis und Stadt Augsburg": 123,
     "Kreis und Stadt Bayreuth": 123,
@@ -434,4 +433,6 @@ POLLEN_REGION_MAPPING = {
     "Kreis und Stadt Würzburg": 124,
     "Schweinfurt": 124,
     "Würzburg": 124,
+    "Kitzingen": 124,
+    "Landkreis Kitzingen": 124,
 }
