@@ -22,6 +22,15 @@ GeoWeather ist eine spezialisierte Home Assistant Integration für Wohnmobile un
 - 🌧️ **Regenvorhersage:** Aktuelle Niederschlagsintensität + Forecast via DWD Radar
 - 🚀 **Zero-Config:** Das Pollen-Region-Mapping ist nun fest integriert
 
+🚐 **Warum GeoWeather? (Die Mission)**
+Die meisten Wetter-Integrationen in Home Assistant sind für stationäre Häuser entwickelt. Wer jedoch mit dem Wohnmobil oder Camper reist, stößt schnell an Grenzen:
+
+- Das GPS-Dilemma: Der Deutsche Wetterdienst (DWD) liefert Daten nicht direkt per Breitengrad/Längengrad. Er benötigt spezifische Warnzellen-IDs (für Wetter) und Region-IDs (für Pollen). GeoWeather erledigt diese komplexe "Übersetzung" im Hintergrund vollautomatisch bei jedem Stopp.
+- Daten-Hygiene: Ständiges Abfragen von Wetterdaten während der Fahrt verbraucht unnötig mobiles Datenvolumen und CPU-Last. GeoWeather pausiert intelligent, solange du dich bewegst.
+- Ankunfts-Logik: Was bringt dir die Pollenwarnung von vor 200 km? GeoWeather wartet mit dem Update, bis du wirklich an deinem Ziel angekommen bist (Arrival Delay).
+
+GeoWeather wurde genau für diese Lücke entwickelt. Als Vorbilder dienten die großartigen Arbeiten der unten genannten Projekte, deren Logik ich für den mobilen Einsatz adaptiert und erweitert habe.
+
 ---
 Wenn dir die integration gefällt, gib mir bitte einen Stern bei [github](https://github.com/hflocki/geoweather)
 
