@@ -29,7 +29,7 @@ action:
     data: {}
 mode: skip
 
-
+# Automation für Windwarnungen als Notification senden
 alias: "Sicherheit: Markise bei Wind einfahren"
 description: "Reagiert auf die Windgeschwindigkeit in den Attributen"
 triggers:
@@ -146,6 +146,42 @@ content: |
     *Aktuell liegen keine Warnmeldungen vor.*
   {% endif %}
 
+---
+# 3. Wind Warnung als Kachel
+type: custom:button-card
+entity: sensor.geoweather_wind_warnstatus
+name: Wind-Sicherheit
+show_state: true
+show_label: true
+label: |
+  [[[ 
+    return states['sensor.geoweather_wind_warnstatus'].attributes.speed_max + ' km/h';
+  ]]]
+styles:
+  card:
+    - height: 100px
+    - background-color: |
+        [[[
+          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          if (level == 0) return 'rgba(0, 255, 0, 0.1)';
+          if (level <= 2) return 'rgba(255, 165, 0, 0.2)';
+          return 'rgba(255, 0, 0, 0.3)';
+        ]]]
+    - border: |
+        [[[
+          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          if (level == 0) return '1px solid green';
+          if (level <= 2) return '2px solid orange';
+          return '3px solid red';
+        ]]]
+  icon:
+    - color: |
+        [[[
+          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          if (level == 0) return 'green';
+          if (level <= 2) return 'orange';
+          return 'red';
+        ]]]
 ---
 
 # =============================================================================
