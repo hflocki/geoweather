@@ -127,7 +127,7 @@ Erzwingt ein sofortiges Update der Pollendaten, unabhängig von Zeitregeln oder 
 ## 🤖 Automatisierung & Dashboard
 Detaillierte Beispiele für den Camper-Betrieb (Update-Trigger) und schicke Dashboard-Karten findest du hier:
 
-👉 [ha_examples.yaml](https://github.com/hflocki/geoweather/blob/develop/ha_examples.yaml)
+👉 [ha_examples.yaml](https://github.com/hflocki/geoweather/ha_examples.yaml)
 
 ---
 
