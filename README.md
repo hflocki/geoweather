@@ -132,6 +132,7 @@ Detaillierte Beispiele für den Camper-Betrieb (Update-Trigger) und schicke Dash
 ---
 
 ## 🗺 Pollen Region Mapping
+
 Über 430 Regionen sind integriert. Falls dein Standort fehlt (Log: "Kein ID-Mapping gefunden"), kannst du ihn manuell in der `mapping.py` ergänzen und uns als Issue melden.
 ---
 
