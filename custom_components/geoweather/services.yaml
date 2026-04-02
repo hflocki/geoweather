@@ -1,9 +1,10 @@
 update:
-  name: Standort & Wetter aktualisieren
+  name: Wetter & Warnungen aktualisieren
   description: >
-    Ruft alle DWD-APIs erneut ab (Standort, Warnungen, Pollenflug).
-    Wird automatisch ignoriert, wenn GeoWeather fährt (Geschwindigkeit > Schwellenwert)
-    oder der GPS-Fix unzureichend ist (Satelliten < Minimum).
+    Aktualisiert sofort Regenradar, Wetterwarnungen und den aktuellen Standort.
+    Pollenflug-Daten werden nur mit aktualisiert, wenn die Bedingungen 
+    (12:00 Uhr, Standortwechsel oder Ankunfts-Verzögerung) erfüllt sind.
+    Wird bei Fahrt oder schlechtem GPS ignoriert.
   fields: {}
 
 update_pollen_now:
