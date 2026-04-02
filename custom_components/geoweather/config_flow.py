@@ -167,7 +167,7 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_UPDATE_INTERVAL,
                     default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
-                ): _number(5, 1440, 5, "Min"),
+                ): _number(0, 1440, 5, "Min"),
 
                 vol.Optional(
                     CONF_ARRIVAL_DELAY, 
