@@ -31,21 +31,17 @@ mode: skip
 
 
 alias: "Sicherheit: Markise bei Wind einfahren"
-description: ""
+description: "Reagiert auf die Windgeschwindigkeit in den Attributen"
 triggers:
-  - entity_id: sensor.geoweather_wind_max_speed
+  - trigger: numeric_state
+    entity_id: sensor.geoweather_wind_warnstatus
+    attribute: speed_max  
     above: 45
-    trigger: numeric_state
 actions:
-  - data:
-      title: Windwarnung am Stellplatz!
-      message: >-
-        Böen bis {{ state_attr('sensor.geoweather_wind_status', 'speed_max') }}
-        km/h erwartet. Markise sichern!
-    action: notify.mobile_app_handy
-
-
-
+  - action: notify.mobile_app_dein_handy # Beispiel-Aktion
+    data:
+      title: "Windwarnung!"
+      message: "Böen bis zu {{ state_attr('sensor.geoweather_wind_warnstatus', 'speed_max') }} km/h erkannt!"
 ---
 
 # =============================================================================
