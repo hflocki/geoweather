@@ -82,6 +82,7 @@ Alle Entitäten werden unter einem gemeinsamen **GeoWeather-Gerät** gruppiert, 
 | `sensor.geoweather_pollen_...` | Index (0-3) | **9 Einzelsensoren** (Birke, Gräser, etc.) mit Vorhersage-Attributen. |
 | `sensor.geoweather_pollenbelastung_gesamt` | Höchste Stufe | Aktueller Belastungsindex inkl. DWD-Region-Info. |
 | `sensor.geoweather_niederschlag_aktuell` |	mm/h	| Aktuelle Regenintensität direkt an deiner GPS-Position. |
+| `sensor.geoweather_wind_warnstatus`| km/h | Zeigt Wind-Events (Sturm/Böen) & max. km/h aus DWD-Texten. |
 | `sensor.geoweather_regenvorhersage`	| Startzeit	| Wann der nächste Regen beginnt (inkl. Radar-Forecast-Map). |
 | `binary_sensor.geoweather_moving` | `on` / `off` | `on` = Fahrt erkannt (Updates pausiert zum Ressourcenschutz) |
 | `sensor.geoweather_api_call_intervall` | Minuten | Zeigt das aktuell konfigurierte Abruf-Intervall an. |
@@ -98,29 +99,27 @@ Ab Version v2.3.0
 
 ---
 
-## 🛠 Dienst: `geoweather.update`
-Dieser Dienst löst einen frischen Abruf der Daten Standort, Warnungen und Radar aus. (siehe Sperren)
+## 🛠 Dienste (Actions)
 
-## 🛠 Dienst: `geoweather.update_pollen_now`
-Dieser Dienst löst einen frischen Abruf der Pollen Daten aus (siehe Sperren) 
+### `geoweather.update`
+Aktualisiert Standort, Warnungen und Radar. Pollen werden nur mitgeladen, wenn das tägliche Zeitfenster (ab 12:00 Uhr) erreicht oder der Ort gewechselt wurde.
 
-**Intelligente Sperren:**
-Beide Dienste werden nur ausgeführt, wenn das Fahrzeug **steht** und ein **gültiger GPS-Fix** vorliegt.
+### `geoweather.update_pollen_now`
+Erzwingt ein sofortiges Update der Pollendaten, unabhängig von Zeitregeln oder Standzeit.
 
+> **Intelligente Sperren:** Beide Dienste werden nur ausgeführt, wenn das Fahrzeug **steht** und ein **gültiger GPS-Fix** vorliegt.
 ---
 
-## 🌸 Pollenflug-Belastungsstufen
-
-Die Integration liefert die offiziellen DWD-Grenzwerte. Für Dashboards empfehlen wir, bei Zwischenstufen (z.B. `1-2`) immer die Farbe der höheren Stufe zu wählen.
+## 🌸 Pollenflug-Belastungsstufen (DWD)
 
 | Wert | Bedeutung | Beschreibung |
 |:---:|:---|:---|
 | 0.0 | Keine | Keine Belastung nachweisbar. |
-| 0.5 | Keine bis gering | (Früher 0-1) Erste Pollen messbar. |
+| 0.5 | Keine bis gering | Erste Pollen messbar. |
 | 1.0 | Gering | Leicht erhöhte Konzentration. |
-| 1.5 | Gering bis mittel | (Früher 1-2) Spürbare Belastung. |
+| 1.5 | Gering bis mittel | Spürbare Belastung. |
 | 2.0 | Mittel | Deutliche Symptome. |
-| 2.5 | Mittel bis hoch | (Früher 2-3) Starke Belastung. |
+| 2.5 | Mittel bis hoch | Starke Belastung. |
 | 3.0 | Stark | Maximale Warnstufe. |
 
 ---
@@ -128,21 +127,12 @@ Die Integration liefert die offiziellen DWD-Grenzwerte. Für Dashboards empfehle
 ## 🤖 Automatisierung & Dashboard
 Detaillierte Beispiele für den Camper-Betrieb (Update-Trigger) und schicke Dashboard-Karten findest du hier:
 
-[ha_examples.yaml](https://github.com/hflocki/geoweather/blob/develop/ha_examples.yaml)
-> 
+👉 [ha_examples.yaml](https://github.com/hflocki/geoweather/blob/develop/ha_examples.yaml)
+
 ---
 
 ## 🗺 Pollen Region Mapping
-Was tun bei Fehlern?
 Über 430 Regionen sind integriert. Falls dein Standort fehlt (Log: "Kein ID-Mapping gefunden"), kannst du ihn manuell in der `mapping.py` ergänzen und uns als Issue melden.
-
-```YAML
-"Dein Ort aus dem Log": "Passende DWD-Region"
- "Hamburg": 12,
- "Herzogtum Lauenburg": 12,
- "Kiel": 12,
-```
-* Wichtig Formatierung einhalten (4 leerzeichen vor den Werten) 
 ---
 
 
