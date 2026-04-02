@@ -1,4 +1,4 @@
-"""Config Flow for GeoWeather."""
+"""Config Flow for GeoWeather. v2.3.0 """
 
 from __future__ import annotations
 
