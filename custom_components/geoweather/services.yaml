@@ -2,7 +2,7 @@ update:
   name: Wetter & Warnungen aktualisieren
   description: >
     Aktualisiert sofort Regenradar, Wetterwarnungen und den aktuellen Standort.
-    Pollenflug-Daten werden nur mit aktualisiert, wenn die Bedingungen 
+    Pollenflug-Daten werden nur mit aktualisiert, wenn die Bedingungen
     (12:00 Uhr, Standortwechsel oder Ankunfts-Verzögerung) erfüllt sind.
     Wird bei Fahrt oder schlechtem GPS ignoriert.
   fields: {}
@@ -10,6 +10,6 @@ update:
 update_pollen_now:
   name: Pollenflug sofort aktualisieren
   description: >
-    Erzwingt ein sofortiges Update der Pollendaten vom DWD, unabhängig von der 
+    Erzwingt ein sofortiges Update der Pollendaten vom DWD, unabhängig von der
     12-Uhr-Regel oder der Ankunfts-Verzögerung. Funktioniert nur im Stillstand.
   fields: {}

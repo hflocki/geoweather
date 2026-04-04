@@ -1,19 +1,28 @@
 from __future__ import annotations
+
 from datetime import datetime
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
 from .const import DOMAIN
 
 POLLEN_TYPES = [
-    ("birke", "Pollen Birke"), ("graeser", "Pollen Graeser"), ("roggen", "Pollen Roggen"),
-    ("erle", "Pollen Erle"), ("hasel", "Pollen Hasel"), ("esche", "Pollen Esche"),
-    ("beifuss", "Pollen Beifuss"), ("ambrosia", "Pollen Ambrosia"), ("eiche", "Pollen Eiche"),
+    ("birke", "Pollen Birke"),
+    ("graeser", "Pollen Graeser"),
+    ("roggen", "Pollen Roggen"),
+    ("erle", "Pollen Erle"),
+    ("hasel", "Pollen Hasel"),
+    ("esche", "Pollen Esche"),
+    ("beifuss", "Pollen Beifuss"),
+    ("ambrosia", "Pollen Ambrosia"),
+    ("eiche", "Pollen Eiche"),
 ]
 
 
@@ -21,70 +30,160 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
-    # ── 1. REGEN: Aktuell ────────────────────────────────────────────────────
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="niederschlag_aktuell",
-        name="Niederschlag aktuell",
-        native_unit_of_measurement="mm/h",
-        device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:weather-pouring",
-    )))
+    # ── 1. PRECIPITATION: Current ─────────────────────────────────────────────
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="niederschlag_aktuell",
+                name="Niederschlag aktuell",
+                native_unit_of_measurement="mm/h",
+                device_class=SensorDeviceClass.PRECIPITATION_INTENSITY,
+                state_class=SensorStateClass.MEASUREMENT,
+                icon="mdi:weather-pouring",
+            ),
+        )
+    )
 
-    # ── 2. REGEN: Vorhersage naechste 2 Stunden ──────────────────────────────
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="regen_vorhersage_2h",
-        name="Regen Vorhersage 2h",
-        icon="mdi:weather-rainy",
-    )))
+    # ── 2. PRECIPITATION: Forecast next 2 hours ───────────────────────────────
+    # Updated key to generate sensor.geoweather_niederschlag_2h
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="niederschlag_2h",
+                name="Niederschlag Vorhersage 2h",
+                icon="mdi:weather-rainy",
+            ),
+        )
+    )
 
-    # ── 3. WIND: Aktuell (aus DWD-Warnungen) ─────────────────────────────────
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="wind_aktuell",
-        name="Wind aktuell",
-        icon="mdi:weather-windy",
-    )))
+    # ── 3. WIND: Current (from DWD warnings) ──────────────────────────────────
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="wind_aktuell",
+                name="Wind aktuell",
+                icon="mdi:weather-windy",
+            ),
+        )
+    )
 
-    # ── 4. WIND: Vorhersage (naechste aktive Windwarnung) ────────────────────
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="wind_vorhersage",
-        name="Wind Vorhersage",
-        icon="mdi:weather-windy-variant",
-    )))
+    # ── 4. WIND: Forecast (next active wind warning) ──────────────────────────
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="wind_vorhersage",
+                name="Wind Vorhersage",
+                icon="mdi:weather-windy-variant",
+            ),
+        )
+    )
 
-    # ── 5. Standort & Warnungen ──────────────────────────────────────────────
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="standort", name="Aktueller Standort", icon="mdi:map-marker-radius",
-    )))
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="warnungen_anzahl", name="Wetterwarnungen Anzahl", icon="mdi:alert-decagram",
-    )))
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="warn_region", name="DWD Warnregion", icon="mdi:map-check",
-    )))
+    # ── 5. Location & Warnings ────────────────────────────────────────────────
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="standort",
+                name="Aktueller Standort",
+                icon="mdi:map-marker-radius",
+            ),
+        )
+    )
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="wetterwarnungen",
+                name="Wetterwarnungen",
+                icon="mdi:alert-decagram",
+            ),
+        )
+    )
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="warn_region",
+                name="DWD Warnregion",
+                icon="mdi:map-check",
+            ),
+        )
+    )
 
-    # ── 6. Legacy-Sensor (Rueckwaertskompatibilitaet) ────────────────────────
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="regenvorhersage", name="Regenvorhersage (legacy)", icon="mdi:weather-clock",
-    )))
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="wind_status", name="Wind Warnstatus", icon="mdi:weather-windy",
-    )))
+    # ── 6. Legacy Sensors ─────────────────────────────────────────────────────
+    # Changed 'regenvorhersage' to 'niederschlagvorhersage'
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="niederschlagvorhersage",
+                name="Niederschlag Vorhersage",
+                icon="mdi:weather-clock",
+            ),
+        )
+    )
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="wind_status",
+                name="Wind Warnstatus",
+                icon="mdi:weather-windy",
+            ),
+        )
+    )
 
-    # ── 7. Pollen ────────────────────────────────────────────────────────────
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="pollen_gesamt", name="Pollenbelastung Gesamt", icon="mdi:flower",
-    )))
+    # ── 7. Pollen ─────────────────────────────────────────────────────────────
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="pollen_gesamt",
+                name="Pollenbelastung Gesamt",
+                icon="mdi:flower",
+            ),
+        )
+    )
     for key, name in POLLEN_TYPES:
-        entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-            key=f"pollen_{key}", name=name, icon="mdi:sprout",
-        )))
+        entities.append(
+            GeoWeatherSensor(
+                coordinator,
+                entry,
+                SensorEntityDescription(
+                    key=f"pollen_{key}",
+                    name=name,
+                    icon="mdi:sprout",
+                ),
+            )
+        )
 
-    # ── 8. Technik ───────────────────────────────────────────────────────────
-    entities.append(GeoWeatherSensor(coordinator, entry, SensorEntityDescription(
-        key="letztes_update", name="Letztes Update",
-        device_class=SensorDeviceClass.TIMESTAMP, icon="mdi:update",
-    )))
+    # ── 8. Technical ──────────────────────────────────────────────────────────
+    entities.append(
+        GeoWeatherSensor(
+            coordinator,
+            entry,
+            SensorEntityDescription(
+                key="letztes_update",
+                name="Letztes Update",
+                device_class=SensorDeviceClass.TIMESTAMP,
+                icon="mdi:update",
+            ),
+        )
+    )
 
     async_add_entities(entities)
 
@@ -111,14 +210,14 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
             return None
         key = self.entity_description.key
 
-        # ── REGEN aktuell ───────────────────────────────────────────────────
-        regen = data.get("regen", {})
+        # ── PRECIPITATION current ─────────────────────────────────────────────
+        niederschlag = data.get("niederschlag", {})
         if key == "niederschlag_aktuell":
-            return regen.get("aktuell", 0.0)
+            return niederschlag.get("aktuell", 0.0)
 
-        # ── REGEN Vorhersage 2h ─────────────────────────────────────────────
-        if key == "regen_vorhersage_2h":
-            f2h = regen.get("forecast_2h", {})
+        # ── PRECIPITATION Forecast 2h ─────────────────────────────────────────
+        if key == "niederschlag_2h":
+            f2h = niederschlag.get("forecast_2h", {})
             if not f2h:
                 return "Keine Daten"
             if f2h.get("raining_now"):
@@ -126,54 +225,62 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
             if f2h.get("rain_expected"):
                 mins = f2h.get("next_rain_in_min", 0)
                 return f"Regen in {mins} min"
-            return "Kein Regen (2h)"
+            return "Kein Niederschlag (2h)"
 
-        # ── WIND aktuell ────────────────────────────────────────────────────
+        # ── WIND current ──────────────────────────────────────────────────────
         if key == "wind_aktuell":
             wind = data.get("wind", {})
             return wind.get("type", "Normal")
 
-        # ── WIND Vorhersage ─────────────────────────────────────────────────
+        # ── WIND Forecast ─────────────────────────────────────────────────────
         if key == "wind_vorhersage":
             warnings = data.get("warnings", {}).get("warnungen", [])
             wind_warns = [
-                w for w in warnings
-                if any(word in w.get("ereignis", "").lower()
-                       for word in ["wind", "sturm", "boen", "orkan"])
+                w
+                for w in warnings
+                if any(
+                    word in w.get("ereignis", "").lower()
+                    for word in ["wind", "sturm", "boen", "orkan"]
+                )
             ]
             if not wind_warns:
                 return "Keine Windwarnung"
-            # Schlimmste aktive Warnung
-            worst = sorted(wind_warns, key=lambda x: x.get("schwere_level", 0), reverse=True)[0]
+            worst = sorted(
+                wind_warns, key=lambda x: x.get("schwere_level", 0), reverse=True
+            )[0]
             return worst.get("ereignis", "Windwarnung")
 
-        # ── Legacy / Compat ─────────────────────────────────────────────────
-        if key == "regenvorhersage":
-            val = regen.get("next_start")
-            return val if val is not None else "Kein Regen"
+        # ── Legacy / Compat ───────────────────────────────────────────────────
+        if key == "niederschlagvorhersage":
+            val = niederschlag.get("next_start")
+            return val if val is not None else "Kein Niederschlag"
 
         if key == "wind_status":
             return data.get("wind", {}).get("type", "Normal")
 
-        # ── Standort & Warnungen ────────────────────────────────────────────
+        # ── Location & Warnings ───────────────────────────────────────────────
         loc = data.get("location", {})
         if key == "standort":
             return loc.get("gemeinde") or loc.get("kreis") or "Unbekannt"
         if key == "warn_region":
             return loc.get("warn_region_name") or loc.get("kreis") or "Unbekannt"
-        if key == "warnungen_anzahl":
+        if key == "wetterwarnungen":
             return data.get("warnings", {}).get("anzahl", 0)
 
-        # ── Pollen ──────────────────────────────────────────────────────────
+        # ── Pollen ────────────────────────────────────────────────────────────
         pollen = data.get("pollen", {})
         if key == "pollen_gesamt":
-            vals = [v for k, v in pollen.items() if k.endswith("_today") and isinstance(v, (int, float))]
+            vals = [
+                v
+                for k, v in pollen.items()
+                if k.endswith("_today") and isinstance(v, (int, float))
+            ]
             return max(vals) if vals else 0.0
         if key.startswith("pollen_"):
             p_key = key.replace("pollen_", "")
             return pollen.get(f"{p_key}_today", 0.0)
 
-        # ── Technik ─────────────────────────────────────────────────────────
+        # ── Technical ─────────────────────────────────────────────────────────
         if key == "letztes_update":
             val = data.get("last_updated")
             return datetime.fromisoformat(val) if val else None
@@ -186,19 +293,19 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
         if not data:
             return None
         key = self.entity_description.key
-        regen = data.get("regen", {})
+        niederschlag = data.get("niederschlag", {})
         pollen = data.get("pollen", {})
 
-        # ── REGEN aktuell: Attribute ─────────────────────────────────────────
+        # ── PRECIPITATION current: Attributes ─────────────────────────────────
         if key == "niederschlag_aktuell":
             return {
-                "forecast": regen.get("forecast", {}),
-                "raining_now": (regen.get("aktuell", 0.0) or 0.0) > 0,
+                "forecast": niederschlag.get("forecast", {}),
+                "raining_now": (niederschlag.get("aktuell", 0.0) or 0.0) > 0,
             }
 
-        # ── REGEN Vorhersage 2h: Attribute ──────────────────────────────────
-        if key == "regen_vorhersage_2h":
-            f2h = regen.get("forecast_2h", {})
+        # ── PRECIPITATION Forecast 2h: Attributes ─────────────────────────────
+        if key == "niederschlag_2h":
+            f2h = niederschlag.get("forecast_2h", {})
             return {
                 "raining_now": f2h.get("raining_now", False),
                 "rain_expected": f2h.get("rain_expected", False),
@@ -211,7 +318,7 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "forecast_steps": f2h.get("forecast_steps", {}),
             }
 
-        # ── WIND aktuell: Attribute ──────────────────────────────────────────
+        # ── WIND current: Attributes ──────────────────────────────────────────
         if key == "wind_aktuell":
             wind = data.get("wind", {})
             return {
@@ -221,15 +328,20 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "unit": "km/h",
             }
 
-        # ── WIND Vorhersage: Attribute ───────────────────────────────────────
+        # ── WIND Forecast: Attributes ─────────────────────────────────────────
         if key == "wind_vorhersage":
             warnings = data.get("warnings", {}).get("warnungen", [])
             wind_warns = [
-                w for w in warnings
-                if any(word in w.get("ereignis", "").lower()
-                       for word in ["wind", "sturm", "boen", "orkan"])
+                w
+                for w in warnings
+                if any(
+                    word in w.get("ereignis", "").lower()
+                    for word in ["wind", "sturm", "boen", "orkan"]
+                )
             ]
-            wind_warns_sorted = sorted(wind_warns, key=lambda x: x.get("schwere_level", 0), reverse=True)
+            wind_warns_sorted = sorted(
+                wind_warns, key=lambda x: x.get("schwere_level", 0), reverse=True
+            )
             attrs = {
                 "anzahl_windwarnungen": len(wind_warns),
                 "warnungen": [
@@ -246,28 +358,30 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
             }
             if wind_warns_sorted:
                 worst = wind_warns_sorted[0]
-                attrs.update({
-                    "naechste_warnung_beginn": worst.get("beginn"),
-                    "naechste_warnung_ende": worst.get("ende"),
-                    "naechste_warnung_schwere": worst.get("schwere"),
-                    "beschreibung": worst.get("beschreibung", ""),
-                })
+                attrs.update(
+                    {
+                        "naechste_warnung_beginn": worst.get("beginn"),
+                        "naechste_warnung_ende": worst.get("ende"),
+                        "naechste_warnung_schwere": worst.get("schwere"),
+                        "beschreibung": worst.get("beschreibung", ""),
+                    }
+                )
             return attrs
 
-        # ── Legacy regen ─────────────────────────────────────────────────────
-        if key == "regenvorhersage":
+        # ── Legacy precipitation ──────────────────────────────────────────────
+        if key == "niederschlagvorhersage":
             return {
-                "next_end": regen.get("next_end"),
-                "next_length_min": regen.get("next_length"),
-                "next_max_mmh": regen.get("next_max_mmh"),
-                "next_sum_mm": regen.get("next_sum_mm"),
+                "next_end": niederschlag.get("next_end"),
+                "next_length_min": niederschlag.get("next_length"),
+                "next_max_mmh": niederschlag.get("next_max_mmh"),
+                "next_sum_mm": niederschlag.get("next_sum_mm"),
             }
 
-        # ── Warnungen ────────────────────────────────────────────────────────
-        if key == "warnungen_anzahl":
+        # ── Warnings ──────────────────────────────────────────────────────────
+        if key == "wetterwarnungen":
             return {"aktive_warnungen": data.get("warnings", {}).get("warnungen", [])}
 
-        # ── Standort ─────────────────────────────────────────────────────────
+        # ── Location ──────────────────────────────────────────────────────────
         if key == "standort":
             loc = data.get("location", {})
             return {
@@ -275,7 +389,7 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "warncellid": loc.get("warncellid"),
             }
 
-        # ── Pollen gesamt ────────────────────────────────────────────────────
+        # ── Pollen total ──────────────────────────────────────────────────────
         if key == "pollen_gesamt":
             return {
                 "dwd_region_id": pollen.get("dwd_region_id"),
@@ -283,7 +397,7 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "kreis": pollen.get("aktueller_kreis"),
             }
 
-        # ── Pollen einzeln ───────────────────────────────────────────────────
+        # ── Pollen individual ─────────────────────────────────────────────────
         if key.startswith("pollen_") and key != "pollen_gesamt":
             p_key = key.replace("pollen_", "")
             return {
@@ -292,7 +406,7 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
                 "dayafter_to": pollen.get(f"{p_key}_dayafter_to", 0.0),
             }
 
-        # ── Wind legacy ──────────────────────────────────────────────────────
+        # ── Wind legacy ───────────────────────────────────────────────────────
         if key == "wind_status":
             wind = data.get("wind", {})
             return {

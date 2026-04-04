@@ -227,7 +227,10 @@ class DWDRadar:
         raining_now = current_val > 0
 
         future_values = {
-            t: v for t, v in self.get_precipitation_values(lat, lon, future_only=True).items()
+            t: v
+            for t, v in self.get_precipitation_values(
+                lat, lon, future_only=True
+            ).items()
             if t <= cutoff
         }
 
@@ -280,5 +283,7 @@ class DWDRadar:
         """Gibt alle Forecast-Zeitschritte als {ISO-Zeitstring: mm/h} zurueck."""
         return {
             t.isoformat(): v
-            for t, v in self.get_precipitation_values(lat, lon, future_only=False).items()
+            for t, v in self.get_precipitation_values(
+                lat, lon, future_only=False
+            ).items()
         }

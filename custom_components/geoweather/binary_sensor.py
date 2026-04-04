@@ -38,10 +38,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up the binary sensor platform."""
     coordinator: GeoWeatherCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([
-        GeoWeatherMovingBinarySensor(coordinator, entry),
-        GeoWeatherArrivedBinarySensor(coordinator, entry),
-    ])
+    async_add_entities(
+        [
+            GeoWeatherMovingBinarySensor(coordinator, entry),
+            GeoWeatherArrivedBinarySensor(coordinator, entry),
+        ]
+    )
 
 
 class GeoWeatherMovingBinarySensor(BinarySensorEntity):
@@ -137,14 +139,16 @@ class GeoWeatherMovingBinarySensor(BinarySensorEntity):
 
 class GeoWeatherArrivedBinarySensor(BinarySensorEntity):
     """Arrived-Sensor: ON = gerade angekommen, wartet Standzeit-Delay ab.
-    
+
     ON  → Fahrzeug hat gerade gestoppt, Standzeit-Delay läuft noch.
           Update wird NOCH NICHT ausgelöst.
     OFF → Standzeit abgelaufen (oder delay=0), Update wurde/wird ausgeführt.
           Kann in Automationen als Trigger für geoweather.update genutzt werden.
     """
 
-    _attr_device_class = BinarySensorDeviceClass.OCCUPANCY  # kein eigener "arrived"-Class
+    _attr_device_class = (
+        BinarySensorDeviceClass.OCCUPANCY
+    )  # kein eigener "arrived"-Class
     _attr_should_poll = False
     _attr_has_entity_name = True
     _attr_name = "Arrived Waiting"
@@ -173,6 +177,7 @@ class GeoWeatherArrivedBinarySensor(BinarySensorEntity):
     def extra_state_attributes(self) -> dict:
         """Zeigt verbleibende Wartezeit und Delay-Einstellung."""
         from datetime import timezone as tz
+
         arrival_delay = self._cfg(CONF_SPEED_THRESHOLD)  # unused, use proper one
         arrival_delay_min = float(
             {**self._entry.data, **self._entry.options}.get("arrival_delay", 10)

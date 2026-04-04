@@ -5,7 +5,7 @@
 ###############################################################################
 
 # =============================================================================
-# 🤖 AUTOMATISIERUNGEN 
+# 🤖 AUTOMATISIERUNGEN
 # =============================================================================
 
 # HINWEIS: In v2.3.3 übernimmt die Integration das Warten nach der Ankunft
@@ -104,7 +104,6 @@
   mode: single
 
 ---
-
 # =============================================================================
 # 🌦️ DASHBOARD: REGEN & STANDORT
 # =============================================================================
@@ -130,71 +129,104 @@ tap_action:
   action: more-info
 
 ---
-
 # 2. Visualisierung (2h ApexChart)
 type: custom:apexcharts-card
 header:
   show: true
-  title: Regenvorhersage (Nächste 2 Stunden)
+  title: Regenvorhersage (2h)
   show_states: true
 graph_span: 2h
 span:
   start: minute
 series:
-  - entity: sensor.geoweather_niederschlag_aktuell
+  - entity: sensor.geoweather_niederschlag_vorhersage_2h
     name: Intensität
     unit: mm/h
     data_generator: |
-      const forecast = entity.attributes.forecast;
+      const forecast = entity.attributes.forecast_steps;
       if (!forecast) return [];
       return Object.entries(forecast).map(([time, value]) => {
         return [new Date(time).getTime(), value];
       });
     type: area
-    color: '#03a9f4'
+    color: "#03a9f4"
     curve: smooth
 
 ---
-
 # =============================================================================
 # ⚠️ DASHBOARD: WETTERWARNUNGEN
 # =============================================================================
 
 # 1. Warnungs-Icon (Dynamische Farbe & Blink-Effekt)
 type: custom:button-card
-entity: sensor.geoweather_wetterwarnungen_anzahl
+entity: sensor.geoweather_wetterwarnungen
 aspect_ratio: 1/1
+name: Warnungen
 show_label: true
 label: |
-  [[[ 
-    const warnings = entity.attributes.warnungen;
+  [[[
+    const warnings = entity.attributes.aktive_warnungen;
     if (!warnings || warnings.length === 0) return 'Alles ok';
-    return warnings[0].ereignis; 
+    return warnings[0].ereignis;
   ]]]
-icon: |
-  [[[ return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' : 'mdi:shield-check'; ]]]
+icon: >
+  [[[ return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' :
+  'mdi:shield-check'; ]]]
 styles:
   card:
     - background-color: |
-        [[[ 
-          const warnings = entity.attributes.warnungen;
+        [[[
+          const warnings = entity.attributes.aktive_warnungen;
           if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
           const level = warnings[0].schwere_level;
           if (level <= 1) return '#ffeb3b';
           if (level === 2) return '#fb8c00';
-          if (level >= 3) return '#e53935';
-          return 'var(--card-background-color)';
+          return '#e53935';
         ]]]
   icon:
-    - animation: |
-        [[[ return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out infinite' : 'none'; ]]]
+    - animation: >
+        [[[ return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out
+        infinite' : 'none'; ]]]
 
 ---
+#Status Karte Moving Senssor
+type: custom:mushroom-template-card
+entity: binary_sensor.geoweather_arrived_waiting
+primary: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
+    🚗 Unterwegs – kein Update
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+    ⏳ Warte {{ state_attr('binary_sensor.geoweather_arrived_waiting', 'remaining_min') }} min
+  {% else %}
+    ✅ Steht – Updates aktiv
+  {% endif %}
+secondary: >
+  Delay: {{ state_attr('binary_sensor.geoweather_arrived_waiting',
+  'arrival_delay_min') }} min | Stand: {{
+  (state_attr('binary_sensor.geoweather_arrived_waiting', 'stand_time_sec') /
+  60) | round(1) }} min
+icon: >
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %} mdi:car
 
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+  mdi:timer-sand
+
+  {% else %} mdi:map-marker-check {% endif %}
+icon_color: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %} orange
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %} yellow
+  {% else %} green {% endif %}
+grid_options:
+  columns: 12
+  rows: 1
+
+---
 # 2. Warnungs-Details (Markdown-Liste)
 type: markdown
-content: |
-  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen_anzahl', 'warnungen') %}
+content: >
+  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen',
+  'aktive_warnungen') %}
+
   {% if warnungen %}
     {% for w in warnungen %}
     ### ⚠️ {{ w.ereignis }} ({{ w.schwere }})
@@ -250,36 +282,29 @@ name: Wind-Sicherheit
 show_state: true
 show_label: true
 label: |
-  [[[ 
-    return states['sensor.geoweather_wind_warnstatus'].attributes.speed_max + ' km/h';
+  [[[
+    const g = entity.attributes.speed_max || 0;
+    return 'Böen: ' + g + ' km/h';
   ]]]
 styles:
   card:
-    - height: 100px
+    - height: 80px
     - background-color: |
         [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
-          if (level == 0) return 'rgba(0, 255, 0, 0.1)';
-          if (level <= 2) return 'rgba(255, 165, 0, 0.2)';
-          return 'rgba(255, 0, 0, 0.3)';
+          const level = entity.attributes.level || 0;
+          if (level == 0) return 'rgba(0,255,0,0.1)';
+          if (level <= 2) return 'rgba(255,165,0,0.2)';
+          return 'rgba(255,0,0,0.3)';
         ]]]
     - border: |
         [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          const level = entity.attributes.level || 0;
           if (level == 0) return '1px solid green';
           if (level <= 2) return '2px solid orange';
           return '3px solid red';
         ]]]
-  icon:
-    - color: |
-        [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
-          if (level == 0) return 'green';
-          if (level <= 2) return 'orange';
-          return 'red';
-        ]]]
----
 
+---
 # =============================================================================
 # 🌸 DASHBOARD: POLLENFLUG
 # =============================================================================
@@ -305,58 +330,82 @@ styles:
           const val = parseFloat(entity.state);
           if (val <= 1.5) return '#ffeb3b';
           if (val <= 2.5) return '#fb8c00';
-          if (val > 2.5)  return '#e53935';
-          return 'var(--card-background-color)';
+          return '#e53935';
         ]]]
 
 ---
-
 # 2. Detaillierte Pollen-Übersicht (Grid mit Button-Templates)
-type: vertical-stack
+type: grid
+columns: 3
+square: true
 cards:
-  - type: grid
-    columns: 3
-    square: true
-    cards:
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_birke
-        name: Birke
-        icon: mdi:tree
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_graser
-        name: Gräser
-        icon: mdi:grass
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_roggen
-        name: Roggen
-        icon: mdi:barley
-      # ... hier die weiteren Sensoren analog einfügen ...
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_birke
+    name: Birke
+    icon: mdi:tree
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_graeser
+    name: Gräser
+    icon: mdi:grass
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_roggen
+    name: Roggen
+    icon: mdi:barley
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_erle
+    name: Erle
+    icon: mdi:leaf
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_hasel
+    name: Hasel
+    icon: mdi:flower
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_esche
+    name: Esche
+    icon: mdi:tree-outline
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_beifuss
+    name: Beifuß
+    icon: mdi:sprout
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_ambrosia
+    name: Ambrosia
+    icon: mdi:alert-octagon-outline
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_eiche
+    name: Eiche
+    icon: mdi:nature
 
 ---
-
 # =============================================================================
 # 🎨 TEMPLATES (Muss in die Dashboard 'Raw-Konfiguration')
 # =============================================================================
 # button_card_templates:
-  pollen_style:
-    aspect_ratio: 1/1
-    show_label: true
-    styles:
-      icon:
-        - color: |
-            [[[
-              const v = parseFloat(entity.state);
-              if (v <= 1) return '#c5e566';
-              if (v <= 2) return '#ffeb3b';
-              if (v <= 4) return '#fb8c00';
-              return '#e53935';
-            ]]]
-    label: |
-      [[[
-        const h = entity.state;
-        const m = entity.attributes.tomorrow || '?';
-        return "H: " + h + " | M: " + m;
-      ]]]
+pollen_style:
+  aspect_ratio: 1/1
+  show_label: true
+  styles:
+    icon:
+      - color: |
+          [[[
+            const v = parseFloat(entity.state);
+            if (v <= 1) return '#c5e566';
+            if (v <= 2) return '#ffeb3b';
+            if (v <= 4) return '#fb8c00';
+            return '#e53935';
+          ]]]
+  label: |
+    [[[
+      const h = entity.state;
+      const m = entity.attributes.tomorrow || '?';
+      return "H: " + h + " | M: " + m;
+    ]]]
