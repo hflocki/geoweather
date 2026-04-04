@@ -10,24 +10,89 @@
 # HINWEIS: In v2.3.0 übernimmt die Integration das Warten nach der Ankunft
 # (Arrival Delay) selbst. Diese Automation triggert nur noch den Abruf.
 
-alias: "GeoWeather: Zentraler Update-Trigger"
-description: "Triggert Updates im Stand. Die Standzeit-Sperre liegt im Coordinator."
-id: geoweather_v230_core_trigger
+# =============================================================================
+# 🤖 AUTOMATISIERUNGEN (v2.3.2 – Arrived-Sensor-Logik)
+# =============================================================================
+#
+# Funktionsweise:
+#   binary_sensor.geoweather_moving          ON = fährt, OFF = steht
+#   binary_sensor.geoweather_arrived_waiting ON = angekommen, wartet Delay ab
+#                                            OFF = Delay abgelaufen → Update ok
+#
+# Der Coordinator führt das Update intern erst nach dem Delay durch.
+# Die Automationen triggern nur noch den Refresh – der Coordinator entscheidet,
+# ob die Zeit reif ist.
+#
+# Sonderfall delay=0: sofortiges Update, arrived_waiting bleibt immer OFF.
+
+# ─── Automation 1: Sofort-Update wenn Standzeit-Delay abgelaufen ─────────────
+alias: "GeoWeather: Update nach Standzeit-Delay"
+description: >
+  Triggert geoweather.update, sobald arrived_waiting von ON auf OFF wechselt.
+  Das bedeutet: Fahrzeug steht UND der konfigurierte Delay ist abgelaufen.
+id: geoweather_v232_arrived_trigger
 trigger:
-  - platform: time_pattern
-    minutes: "/10"  # Prüft alle 10 Min auf Regen/Warnungen
   - platform: state
-    entity_id: binary_sensor.geoweather_moving
+    entity_id: binary_sensor.geoweather_arrived_waiting
     from: "on"
     to: "off"
 condition:
+  # Nur auslösen wenn wirklich noch steht (nicht wieder losgefahren)
   - condition: state
     entity_id: binary_sensor.geoweather_moving
     state: "off"
 action:
   - action: geoweather.update
     data: {}
+mode: single
+
+---
+
+# ─── Automation 2: Periodischer Update im Stand (Regen/Warnungen aktuell halten) ─
+alias: "GeoWeather: Periodischer Update im Stand"
+description: >
+  Prüft alle 10 Minuten ob ein Update fällig ist.
+  Der Coordinator ignoriert den Call wenn der Delay noch läuft.
+id: geoweather_v232_periodic_trigger
+trigger:
+  - platform: time_pattern
+    minutes: "/10"
+condition:
+  - condition: state
+    entity_id: binary_sensor.geoweather_moving
+    state: "off"
+  # Nur updaten wenn Delay schon abgelaufen (arrived_waiting = OFF)
+  - condition: state
+    entity_id: binary_sensor.geoweather_arrived_waiting
+    state: "off"
+action:
+  - action: geoweather.update
+    data: {}
 mode: skip
+
+---
+
+# ─── Automation 3: Sofort-Update bei delay=0 (direkt nach Stop) ──────────────
+alias: "GeoWeather: Sofort-Update bei Ankunft (nur bei delay=0)"
+description: >
+  Wenn Standzeit-Delay auf 0 eingestellt ist, triggert arrived_waiting nie.
+  Deshalb hier direkt auf moving OFF triggern.
+  Wenn delay > 0 ist, übernimmt Automation 1 – diese hier dann deaktivieren.
+id: geoweather_v232_instant_on_stop
+trigger:
+  - platform: state
+    entity_id: binary_sensor.geoweather_moving
+    from: "on"
+    to: "off"
+condition:
+  # arrived_waiting ist bei delay=0 sofort OFF → beide Automationen greifen nicht doppelt
+  - condition: state
+    entity_id: binary_sensor.geoweather_arrived_waiting
+    state: "off"
+action:
+  - action: geoweather.update
+    data: {}
+mode: single
 
 # Automation für Windwarnungen als Notification senden
 alias: "Sicherheit: Markise bei Wind einfahren"
@@ -147,7 +212,42 @@ content: |
   {% endif %}
 
 ---
-# 3. Wind Warnung als Kachel
+# 3. Arrived-Status: Standzeit-Delay-Anzeige
+type: custom:mushroom-template-card
+entity: binary_sensor.geoweather_arrived_waiting
+primary: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
+    🚗 Unterwegs – kein Update
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+    ⏳ Angekommen – warte noch {{ state_attr('binary_sensor.geoweather_arrived_waiting', 'remaining_min') }} min
+  {% else %}
+    ✅ Steht – Updates aktiv
+  {% endif %}
+secondary: |
+  {% set delay = state_attr('binary_sensor.geoweather_arrived_waiting', 'arrival_delay_min') %}
+  {% set stand = state_attr('binary_sensor.geoweather_arrived_waiting', 'stand_time_sec') %}
+  Delay: {{ delay }} min | Standzeit: {{ (stand / 60) | round(1) }} min
+icon: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
+    mdi:car
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+    mdi:timer-sand
+  {% else %}
+    mdi:map-marker-check
+  {% endif %}
+icon_color: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
+    orange
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+    yellow
+  {% else %}
+    green
+  {% endif %}
+tap_action:
+  action: more-info
+
+---
+# 4. Wind Warnung als Kachel
 type: custom:button-card
 entity: sensor.geoweather_wind_warnstatus
 name: Wind-Sicherheit
