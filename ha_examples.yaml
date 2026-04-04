@@ -106,7 +106,7 @@ aspect_ratio: 1/1
 show_label: true
 label: |
   [[[ 
-    const warnings = entity.attributes.warnungen;
+    const warnings = entity.attributes.aktive_warnungen;
     if (!warnings || warnings.length === 0) return 'Alles ok';
     return warnings[0].ereignis; 
   ]]]
@@ -116,7 +116,7 @@ styles:
   card:
     - background-color: |
         [[[ 
-          const warnings = entity.attributes.warnungen;
+          const warnings = entity.attributes.aktive_warnungen;
           if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
           const level = warnings[0].schwere_level;
           if (level <= 1) return '#ffeb3b';
@@ -133,7 +133,7 @@ styles:
 # 2. Warnungs-Details (Markdown-Liste)
 type: markdown
 content: |
-  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen_anzahl', 'warnungen') %}
+  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen_anzahl', 'aktive_warnungen') %}
   {% if warnungen %}
     {% for w in warnungen %}
     ### ⚠️ {{ w.ereignis }} ({{ w.schwere }})
