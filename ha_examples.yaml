@@ -15,8 +15,10 @@
 # Wenn man zum Stillstand kommt und X Minuten stehen bleibt → Update auslösen.
 # Das ersetzt den alten "arrival_delay" Parameter der Integration.
 
+
 # ── 1. Update nach Ankunft (10 Min Verzögerung) ──────────────────────────────
-- alias: "GeoWeather – Update after arrival (10 min delay)"
+- id: geoWeather_update_10mindelay
+  alias: "GeoWeather – Update after arrival (10 min delay)"
   description: >
     Triggers a GeoWeather update once the vehicle has been stationary
     (moving sensor off) for 10 minutes.
@@ -30,7 +32,8 @@
     - service: geoweather.update
 
 # ── 2. Sofort-Update bei Ankunft (ohne Verzögerung) ──────────────────────────
-- alias: "GeoWeather – Immediate update when stopped"
+- id: geoWeather_update_when_stopped
+  alias: "GeoWeather – Immediate update when stopped"
   description: >
     Triggers an update immediately when the moving sensor turns off.
   trigger:
@@ -41,7 +44,8 @@
     - service: geoweather.update
 
 # ── 3. Periodisches Update im Stand (alle 30 Min) ────────────────────────────
-- alias: "GeoWeather – Periodic update while stationary (every 30 min)"
+- id: geoWeather_update_stationary_periodic_30
+  alias: "GeoWeather – Periodic update while stationary (every 30 min)"
   description: >
     Update every 30 minutes, but only if the vehicle is currently not moving.
   trigger:
@@ -55,7 +59,8 @@
     - service: geoweather.update
 
 # ── 4. Kombination: Ankunft + periodisch (Stündlich) ─────────────────────────
-- alias: "GeoWeather – Update 10 min after stopping"
+- id: geoWeather_update_stationary_periodic_after10minutes
+  alias: "GeoWeather – Update 10 min after stopping"
   trigger:
     - platform: state
       entity_id: binary_sensor.geoweather_moving
@@ -65,7 +70,8 @@
   action:
     - service: geoweather.update
 
-- alias: "GeoWeather – Hourly update while stationary"
+- id: geoWeather_update_stationary_60
+  alias: "GeoWeather – Hourly update while stationary"
   trigger:
     - platform: time_pattern
       minutes: "0" # Every full hour
@@ -75,6 +81,7 @@
       state: "off"
   action:
     - service: geoweather.update
+
 
 # ── HINWEIS zum Fahren ────────────────────────────────────────────────────────
 # Wenn man fährt: KEINE der obigen Automations feuert (dank "below: 5.0"
@@ -102,8 +109,10 @@ secondary: |
   {% set s_2h = 'sensor.geoweather_niederschlag_vorhersage_2h' %}
   {% set s_legacy = 'sensor.geoweather_niederschlag_vorhersage' %}
 
+  {% set s_aktuell = 'sensor.geoweather_niederschlag_vorhersage' %} 
+
   {% if state_attr(s_2h, 'rain_expected') or states(s_aktuell) | float(0) > 0 %}
-    Dauer: ~{{ state_attr(s_2h, 'duration_min') }} Min | Max: {{ state_attr(s_2h, 'max_intensity_mmh') }} mm/h
+     Dauer: ~{{ state_attr(s_2h, 'duration_min') }} Min | Max: {{ state_attr(s_2h, 'max_intensity_mmh') }} mm/h
   {% else %}
     Nächste 2 Stunden kein Regen
   {% endif %}
@@ -147,6 +156,7 @@ card_mod:
 grid_options:
   columns: 12
   rows: 1
+
 
 
 ---
