@@ -1,105 +1,91 @@
-###############################################################################
-# GeoWeather v2.4.0
-# Diese Datei enthält alle Automatisierungen und Dashboard-Karten.
-# Den Automatisierungs-Block so in die automation.yaml kopieren,
-# nicht über die GUI eingeben!
+# ═══════════════════════════════════════════════════════════════════════════════
+# GeoWeather v2.4.0 – Automation-Beispiele
+# ═══════════════════════════════════════════════════════════════════════════════
 #
-# WICHTIG: Ab v2.4.0 macht die Integration KEINE eigenen Updates mehr.
-# Kein update_interval, kein arrival_delay in der Integration.
-# Alles wird ausschließlich per Automation gesteuert.
+# Die Integration macht KEINE eigenen Updates mehr.
+# Alle Updates werden ausschließlich durch diese Automations gesteuert.
 #
 # ANPASSEN:
-#   sensor.mein_speed_sensor  →  dein Geschwindigkeitssensor (km/h)
-#   5.0                       →  deine speed_threshold aus der Integrations-Config
-###############################################################################
+#   - sensor.mein_speed_sensor  → dein Geschwindigkeitssensor
+#   - 5.0                       → deine speed_threshold aus der Integration
+#
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# =============================================================================
-# 🤖 AUTOMATISIERUNGEN
-# =============================================================================
+# ── 1. Update nach Ankunft (mit Verzögerung) ──────────────────────────────────
+# Wenn man zum Stillstand kommt und X Minuten stehen bleibt → Update auslösen.
+# Das ersetzt den alten "arrival_delay" Parameter der Integration.
 
-# ─── Automation 1: Update nach Ankunft mit Verzögerung ───────────────────────
-# Ersetzt den alten "arrival_delay" der Integration.
-# Das "for:" in der Trigger-Definition übernimmt die Wartezeit.
-- id: geoweather_update_nach_ankunft
-  alias: "GeoWeather: Update nach Ankunft (10 Min Verzögerung)"
+# ── 1. Update nach Ankunft (10 Min Verzögerung) ──────────────────────────────
+- alias: "GeoWeather – Update after arrival (10 min delay)"
   description: >
-    Sobald das Fahrzeug stoppt und 10 Minuten stehen bleibt,
-    wird ein GeoWeather-Update ausgelöst.
-    Die Verzögerung wird hier im Trigger gesteuert, nicht mehr in der Integration.
+    Triggers a GeoWeather update once the vehicle has been stationary
+    (moving sensor off) for 10 minutes.
   trigger:
-    - platform: numeric_state
-      entity_id: sensor.mein_speed_sensor   # <── ANPASSEN
-      below: 5.0                            # <── speed_threshold
+    - platform: state
+      entity_id: binary_sensor.geoweather_moving
+      to: "off"
       for:
-        minutes: 10                         # <── gewünschte Wartezeit
+        minutes: 10
   action:
-    - action: geoweather.update
-      data: {}
-  mode: single
+    - service: geoweather.update
 
-# ─── Automation 2: Sofort-Update bei Stillstand (kein Delay) ─────────────────
-# Für Szenarien wo eine schnelle Reaktion gewünscht ist.
-# NUR EINE von Automation 1 oder 2 aktivieren – nicht beide gleichzeitig.
-- id: geoweather_sofort_update
-  alias: "GeoWeather: Sofort-Update bei Stillstand"
+# ── 2. Sofort-Update bei Ankunft (ohne Verzögerung) ──────────────────────────
+- alias: "GeoWeather – Immediate update when stopped"
   description: >
-    Löst sofort einen Update aus, sobald die Geschwindigkeit unter den
-    Schwellwert fällt. Kein Warten.
+    Triggers an update immediately when the moving sensor turns off.
   trigger:
-    - platform: numeric_state
-      entity_id: sensor.mein_speed_sensor   # <── ANPASSEN
-      below: 5.0                            # <── speed_threshold
+    - platform: state
+      entity_id: binary_sensor.geoweather_moving
+      to: "off"
   action:
-    - action: geoweather.update
-      data: {}
-  mode: single
+    - service: geoweather.update
 
-# ─── Automation 3: Periodisches Update im Stand ───────────────────────────────
-# Ersetzt den alten "update_interval" der Integration.
-# Aktualisiert alle 30 Minuten, aber NUR wenn das Fahrzeug steht.
-- id: geoweather_periodisch_im_stand
-  alias: "GeoWeather: Periodisches Update im Stand (alle 30 Min)"
+# ── 3. Periodisches Update im Stand (alle 30 Min) ────────────────────────────
+- alias: "GeoWeather – Periodic update while stationary (every 30 min)"
   description: >
-    Alle 30 Minuten ein Update, aber nur wenn das Fahrzeug steht.
-    Ersetzt den internen update_interval – Fahren = kein Update.
+    Update every 30 minutes, but only if the vehicle is currently not moving.
   trigger:
     - platform: time_pattern
       minutes: "/30"
   condition:
-    - condition: numeric_state
-      entity_id: sensor.mein_speed_sensor   # <── ANPASSEN
-      below: 5.0                            # <── speed_threshold
+    - condition: state
+      entity_id: binary_sensor.geoweather_moving
+      state: "off"
   action:
-    - action: geoweather.update
-      data: {}
-  mode: single
+    - service: geoweather.update
 
-# ─── Automation 4: Sicherheit – Markise bei Wind einfahren ───────────────────
-- id: geoweather_wind_warning_awning
-  alias: "Sicherheit: Markise bei Wind einfahren"
-  description: "Reagiert auf die Windgeschwindigkeit in den Attributen"
+# ── 4. Kombination: Ankunft + periodisch (Stündlich) ─────────────────────────
+- alias: "GeoWeather – Update 10 min after stopping"
   trigger:
-    - platform: numeric_state
-      entity_id: sensor.geoweather_wind_warnstatus
-      attribute: speed_max
-      above: 45
+    - platform: state
+      entity_id: binary_sensor.geoweather_moving
+      to: "off"
+      for:
+        minutes: 10
   action:
-    - action: notify.mobile_app_dein_handy
-      data:
-        title: "Windwarnung!"
-        message: >
-          Böen bis zu
-          {{ state_attr('sensor.geoweather_wind_warnstatus', 'speed_max') }}
-          km/h erkannt!
-  mode: single
+    - service: geoweather.update
 
----
+- alias: "GeoWeather – Hourly update while stationary"
+  trigger:
+    - platform: time_pattern
+      minutes: "0" # Every full hour
+  condition:
+    - condition: state
+      entity_id: binary_sensor.geoweather_moving
+      state: "off"
+  action:
+    - service: geoweather.update
+
+# ── HINWEIS zum Fahren ────────────────────────────────────────────────────────
+# Wenn man fährt: KEINE der obigen Automations feuert (dank "below: 5.0"
+# Trigger/Bedingung). Die Integration selbst macht ebenfalls keine Updates.
+# → Im Fahrbetrieb werden die Sensoren eingefroren (letzter bekannter Wert).
 
 # =============================================================================
 # 🌦️ DASHBOARD: REGEN & STANDORT
 # =============================================================================
 
-# 1. Regenvorhersage aktuell und Vorhersage 2h (Mushroom Style)
+# 1. Vorhersage Niederschlag kombiniert aktuell und  2h (Mushroom Style)
 type: custom:mushroom-template-card
 primary: |
   {% set s_aktuell = 'sensor.geoweather_niederschlag_aktuell' %}
@@ -164,7 +150,6 @@ grid_options:
 
 
 ---
-
 # =============================================================================
 # ⚠️ DASHBOARD: WETTERWARNUNGEN
 # =============================================================================
@@ -181,8 +166,9 @@ label: |
     if (!warnings || warnings.length === 0) return 'Alles ok';
     return warnings[0].ereignis;
   ]]]
-icon: |
-  [[[ return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' : 'mdi:shield-check'; ]]]
+icon: >
+  [[[ return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' :
+  'mdi:shield-check'; ]]]
 styles:
   card:
     - background-color: |
@@ -196,15 +182,18 @@ styles:
           return 'var(--card-background-color)';
         ]]]
   icon:
-    - animation: |
-        [[[ return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out infinite' : 'none'; ]]]
+    - animation: >
+        [[[ return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out
+        infinite' : 'none'; ]]]
+
 
 ---
-
 # 2. Warnungs-Details (Markdown-Liste)
 type: markdown
-content: |
-  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen_anzahl', 'warnungen') %}
+content: >
+  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen',
+  'aktive_warnungen') %}
+
   {% if warnungen %}
     {% for w in warnungen %}
     ### ⚠️ {{ w.ereignis }} ({{ w.schwere }})
@@ -219,9 +208,7 @@ content: |
 
 ---
 
----
-
-# 3. Wind Warnung als Kachel
+# 4. Wind Warnung als Kachel
 type: custom:button-card
 entity: sensor.geoweather_wind_warnstatus
 name: Wind-Sicherheit
@@ -229,36 +216,28 @@ show_state: true
 show_label: true
 label: |
   [[[
-    return states['sensor.geoweather_wind_warnstatus'].attributes.speed_max + ' km/h';
+    const g = entity.attributes.speed_max || 0;
+    return 'Böen: ' + g + ' km/h';
   ]]]
 styles:
   card:
-    - height: 100px
+    - height: 80px
     - background-color: |
         [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
-          if (level == 0) return 'rgba(0, 255, 0, 0.1)';
-          if (level <= 2) return 'rgba(255, 165, 0, 0.2)';
-          return 'rgba(255, 0, 0, 0.3)';
+          const level = entity.attributes.level || 0;
+          if (level == 0) return 'rgba(0,255,0,0.1)';
+          if (level <= 2) return 'rgba(255,165,0,0.2)';
+          return 'rgba(255,0,0,0.3)';
         ]]]
     - border: |
         [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          const level = entity.attributes.level || 0;
           if (level == 0) return '1px solid green';
           if (level <= 2) return '2px solid orange';
           return '3px solid red';
         ]]]
-  icon:
-    - color: |
-        [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
-          if (level == 0) return 'green';
-          if (level <= 2) return 'orange';
-          return 'red';
-        ]]]
 
 ---
-
 # =============================================================================
 # 🌸 DASHBOARD: POLLENFLUG
 # =============================================================================
@@ -284,58 +263,83 @@ styles:
           const val = parseFloat(entity.state);
           if (val <= 1.5) return '#ffeb3b';
           if (val <= 2.5) return '#fb8c00';
-          if (val > 2.5)  return '#e53935';
-          return 'var(--card-background-color)';
+          return '#e53935';
         ]]]
 
----
 
+---
 # 2. Detaillierte Pollen-Übersicht (Grid mit Button-Templates)
-type: vertical-stack
+type: grid
+columns: 3
+square: true
 cards:
-  - type: grid
-    columns: 3
-    square: true
-    cards:
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_birke
-        name: Birke
-        icon: mdi:tree
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_graser
-        name: Gräser
-        icon: mdi:grass
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_roggen
-        name: Roggen
-        icon: mdi:barley
-      # ... hier die weiteren Sensoren analog einfügen ...
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_birke
+    name: Birke
+    icon: mdi:tree
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_graeser
+    name: Gräser
+    icon: mdi:grass
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_roggen
+    name: Roggen
+    icon: mdi:barley
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_erle
+    name: Erle
+    icon: mdi:leaf
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_hasel
+    name: Hasel
+    icon: mdi:flower
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_esche
+    name: Esche
+    icon: mdi:tree-outline
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_beifuss
+    name: Beifuß
+    icon: mdi:sprout
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_ambrosia
+    name: Ambrosia
+    icon: mdi:alert-octagon-outline
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_eiche
+    name: Eiche
+    icon: mdi:nature
 
 ---
-
 # =============================================================================
 # 🎨 TEMPLATES (Muss in die Dashboard 'Raw-Konfiguration')
 # =============================================================================
 # button_card_templates:
-  pollen_style:
-    aspect_ratio: 1/1
-    show_label: true
-    styles:
-      icon:
-        - color: |
-            [[[
-              const v = parseFloat(entity.state);
-              if (v <= 1) return '#c5e566';
-              if (v <= 2) return '#ffeb3b';
-              if (v <= 4) return '#fb8c00';
-              return '#e53935';
-            ]]]
-    label: |
-      [[[
-        const h = entity.state;
-        const m = entity.attributes.tomorrow || '?';
-        return "H: " + h + " | M: " + m;
-      ]]]
+pollen_style:
+  aspect_ratio: 1/1
+  show_label: true
+  styles:
+    icon:
+      - color: |
+          [[[
+            const v = parseFloat(entity.state);
+            if (v <= 1) return '#c5e566';
+            if (v <= 2) return '#ffeb3b';
+            if (v <= 4) return '#fb8c00';
+            return '#e53935';
+          ]]]
+  label: |
+    [[[
+      const h = entity.state;
+      const m = entity.attributes.tomorrow || '?';
+      return "H: " + h + " | M: " + m;
+    ]]]
