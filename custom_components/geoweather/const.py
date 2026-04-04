@@ -10,14 +10,10 @@ CONF_ALT_SENSOR = "alt_sensor"  # optional
 CONF_SAT_SENSOR = "sat_sensor"  # optional
 CONF_SPEED_THRESHOLD = "speed_threshold"
 CONF_MIN_SATELLITES = "min_satellites"
-CONF_UPDATE_INTERVAL = "update_interval"
-CONF_ARRIVAL_DELAY = "arrival_delay"
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
 DEFAULT_SPEED_THRESHOLD = 5.0  # km/h  – above this = moving
 DEFAULT_MIN_SATELLITES = 4  # below this = bad GPS fix
-DEFAULT_UPDATE_INTERVAL = 0  # 0 = nur manuell via Service
-DEFAULT_ARRIVAL_DELAY = 10  # 10 Minuten warten nach Stillstand
 
 # ── Service name ─────────────────────────────────────────────────────────────
 SERVICE_UPDATE = "update"  # called as geoweather.update

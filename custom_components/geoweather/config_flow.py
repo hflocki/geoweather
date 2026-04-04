@@ -1,4 +1,4 @@
-"""Config Flow for GeoWeather. v2.3.0"""
+"""Config Flow for GeoWeather v2.4.0."""
 
 from __future__ import annotations
 
@@ -8,45 +8,37 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_ALT_SENSOR,
-    CONF_ARRIVAL_DELAY,
     CONF_LAT_SENSOR,
     CONF_LON_SENSOR,
     CONF_MIN_SATELLITES,
     CONF_SAT_SENSOR,
     CONF_SPEED_SENSOR,
     CONF_SPEED_THRESHOLD,
-    CONF_UPDATE_INTERVAL,
-    DEFAULT_ARRIVAL_DELAY,
     DEFAULT_MIN_SATELLITES,
     DEFAULT_SPEED_THRESHOLD,
-    DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
 
-# --- Smart Selectors (v2.2.2) ---
+# --- Selectors ---
 
 _LAT_SELECTOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain=["sensor", "input_number", "device_tracker"])
 )
-
 _LON_SELECTOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain=["sensor", "input_number", "device_tracker"])
 )
-
 _SPEED_SELECTOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain=["sensor", "input_number"])
 )
-
 _GENERIC_SENSOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain=["sensor", "input_number"])
 )
 
 
 def _number(min_, max_, step, unit):
-    """Hilfsfunktion für Zahlen-Eingabefelder."""
     return selector.NumberSelector(
         selector.NumberSelectorConfig(
-            min=float(min_),  # Sicherstellen, dass 0.0 erlaubt ist
+            min=float(min_),
             max=float(max_),
             step=float(step),
             unit_of_measurement=unit,
@@ -61,23 +53,17 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Erster Schritt bei der Installation."""
         errors: dict = {}
 
         if user_input is not None:
-            # Check ob Sensoren existieren
             for key in (CONF_LAT_SENSOR, CONF_LON_SENSOR):
                 entity_id = user_input.get(key)
                 if entity_id and self.hass.states.get(entity_id) is None:
                     errors[key] = "entity_not_found"
 
             if not errors:
-                return self.async_create_entry(
-                    title="GeoWeather",
-                    data=user_input,
-                )
+                return self.async_create_entry(title="GeoWeather", data=user_input)
 
-        # Das Schema MUSS innerhalb der Funktion definiert sein (Einrückung!)
         schema = vol.Schema(
             {
                 vol.Required(CONF_LAT_SENSOR): _LAT_SELECTOR,
@@ -91,32 +77,13 @@ class GeoWeatherConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_MIN_SATELLITES, default=DEFAULT_MIN_SATELLITES
                 ): _number(1, 20, 1, "Satelliten"),
-                vol.Optional(
-                    CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL
-                ): _number(0, 1440, 5, "Minuten"),
-                vol.Optional(
-                    CONF_ARRIVAL_DELAY,
-                    default=DEFAULT_ARRIVAL_DELAY,  # Direkt die Konstante nutzen
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0,
-                        max=60,
-                        unit_of_measurement="min",
-                        mode=selector.NumberSelectorMode.SLIDER,
-                    )
-                ),
             }
         )
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=schema,
-            errors=errors,
-        )
+        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     @staticmethod
     def async_get_options_flow(config_entry):
-        """Startet den Options Flow für spätere Änderungen."""
         return GeoWeatherOptionsFlow(config_entry)
 
 
@@ -127,7 +94,6 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
         self._entry = entry
 
     async def async_step_init(self, user_input=None):
-        """Initialer Schritt für Optionen."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -137,7 +103,6 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
             val = merged.get(key)
             return val if val and val not in ("None", "") else vol.UNDEFINED
 
-        # Hier nutzen wir jetzt auch die neuen Selectoren von oben!
         options_schema = vol.Schema(
             {
                 vol.Required(
@@ -163,21 +128,6 @@ class GeoWeatherOptionsFlow(config_entries.OptionsFlow):
                     CONF_MIN_SATELLITES,
                     default=merged.get(CONF_MIN_SATELLITES, DEFAULT_MIN_SATELLITES),
                 ): _number(1, 20, 1, "Sats"),
-                vol.Optional(
-                    CONF_UPDATE_INTERVAL,
-                    default=merged.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
-                ): _number(0, 1440, 5, "Min"),
-                vol.Optional(
-                    CONF_ARRIVAL_DELAY,
-                    default=merged.get(CONF_ARRIVAL_DELAY, DEFAULT_ARRIVAL_DELAY),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0,
-                        max=60,
-                        unit_of_measurement="min",
-                        mode=selector.NumberSelectorMode.SLIDER,
-                    )
-                ),
             }
         )
 

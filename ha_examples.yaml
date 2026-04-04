@@ -1,109 +1,112 @@
-###############################################################################
-# GeoWeather v2.3.3
-# Diese Datei enthält alle Automatisierungen und Dashboard-Karten.
-# Den Block so in die automation.yaml kopieren nicht über gUI eingeben !
-###############################################################################
-
-# =============================================================================
-# 🤖 AUTOMATISIERUNGEN
-# =============================================================================
-
-# HINWEIS: In v2.3.3 übernimmt die Integration das Warten nach der Ankunft
-# (Arrival Delay) selbst. Diese Automation triggert nur noch den Abruf.
+# ═══════════════════════════════════════════════════════════════════════════════
+# GeoWeather v2.4.0 – Automation-Beispiele
+# ═══════════════════════════════════════════════════════════════════════════════
 #
-# Funktionsweise:
-#   binary_sensor.geoweather_moving          ON = fährt, OFF = steht
-#   binary_sensor.geoweather_arrived_waiting ON = angekommen, wartet Delay ab
-#                                            OFF = Delay abgelaufen → Update ok
+# Die Integration macht KEINE eigenen Updates mehr.
+# Alle Updates werden ausschließlich durch diese Automations gesteuert.
 #
-# Der Coordinator führt das Update intern erst nach dem Delay durch.
-# Die Automationen triggern nur noch den Refresh – der Coordinator entscheidet,
-# ob die Zeit reif ist.
+# ANPASSEN:
+#   - sensor.mein_speed_sensor  → dein Geschwindigkeitssensor
+#   - 5.0                       → deine speed_threshold aus der Integration
 #
-# Sonderfall delay=0: sofortiges Update, arrived_waiting bleibt immer OFF.
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# ─── Automation 1: Sofort-Update wenn Standzeit-Delay abgelaufen ─────────────
-- id: geoweather_v232_arrived_trigger
-  alias: "GeoWeather: Update nach Standzeit-Delay"
-  description: >
-    Triggert geoweather.update, sobald arrived_waiting von ON auf OFF wechselt.
-    Das bedeutet: Fahrzeug steht UND der konfigurierte Delay ist abgelaufen.
-  trigger:
-    - platform: state
-      entity_id: binary_sensor.geoweather_arrived_waiting
-      from: "on"
-      to: "off"
-  condition:
-    # Nur auslösen wenn wirklich noch steht (nicht wieder losgefahren)
-    - condition: state
-      entity_id: binary_sensor.geoweather_moving
-      state: "off"
-  action:
-    - action: geoweather.update
-      data: {}
-  mode: single
+# ── 1. Update nach Ankunft (mit Verzögerung) ──────────────────────────────────
+# Wenn man zum Stillstand kommt und X Minuten stehen bleibt → Update auslösen.
+# Das ersetzt den alten "arrival_delay" Parameter der Integration.
 
-# ─── Automation 2: Periodischer Update im Stand (Regen/Warnungen aktuell halten) ─
-- id: geoweather_v232_periodic_trigger
-  alias: "GeoWeather: Periodischer Update im Stand"
-  description: >
-    Prüft alle 10 Minuten ob ein Update fällig ist.
-    Der Coordinator ignoriert den Call wenn der Delay noch läuft.
-  trigger:
-    - platform: time_pattern
-      minutes: "/10"
-  condition:
-    - condition: state
-      entity_id: binary_sensor.geoweather_moving
-      state: "off"
-    # Nur updaten wenn Delay schon abgelaufen (arrived_waiting = OFF)
-    - condition: state
-      entity_id: binary_sensor.geoweather_arrived_waiting
-      state: "off"
-  action:
-    - action: geoweather.update
-      data: {}
-  mode: single
+automation:
+  - alias: "GeoWeather – Update nach Ankunft (10 Min Verzögerung)"
+    description: >
+      Sobald das Fahrzeug stoppt und 10 Minuten stehen bleibt,
+      wird ein GeoWeather-Update ausgelöst. Ersetzt den arrival_delay der Integration.
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.mein_speed_sensor # <── ANPASSEN
+        below: 5.0 # <── speed_threshold
+        for:
+          minutes: 10 # <── gewünschte Wartezeit nach Ankunft
+    action:
+      - service: geoweather.update
 
-# ─── Automation 3: Sofort-Update bei delay=0 (direkt nach Stop) ──────────────
-- id: geoweather_v232_instant_on_stop
-  alias: "GeoWeather: Sofort-Update bei Ankunft (nur bei delay=0)"
-  description: >
-    Wenn Standzeit-Delay auf 0 eingestellt ist, triggert arrived_waiting nie.
-    Deshalb hier direkt auf moving OFF triggern.
-    Wenn delay > 0 ist, übernimmt Automation 1 – diese hier dann deaktivieren.
-  trigger:
-    - platform: state
-      entity_id: binary_sensor.geoweather_moving
-      from: "on"
-      to: "off"
-  condition:
-    # arrived_waiting ist bei delay=0 sofort OFF → beide Automationen greifen nicht doppelt
-    - condition: state
-      entity_id: binary_sensor.geoweather_arrived_waiting
-      state: "off"
-  action:
-    - action: geoweather.update
-      data: {}
-  mode: single
+  # ── 2. Sofort-Update bei Ankunft (ohne Verzögerung) ──────────────────────────
+  # Für Anwendungsfälle, bei denen man sofort beim Ankommen updaten will
+  # (z.B. Ankunft zu Hause für Wetterwarnung).
 
-# ─── Automation 4: Sicherheit: Markise bei Wind einfahren ──────────────────
-- id: geoweather_wind_warning_awning
-  alias: "Sicherheit: Markise bei Wind einfahren"
-  description: "Reagiert auf die Windgeschwindigkeit in den Attributen"
-  trigger:
-    - platform: numeric_state
-      entity_id: sensor.geoweather_wind_warnstatus
-      attribute: speed_max
-      above: 45
-  action:
-    - action: notify.mobile_app_dein_handy
-      data:
-        title: "Windwarnung!"
-        message: "Böen bis zu {{ state_attr('sensor.geoweather_wind_warnstatus', 'speed_max') }} km/h erkannt!"
-  mode: single
+  - alias: "GeoWeather – Sofort-Update bei Stillstand"
+    description: >
+      Löst sofort einen Update aus, wenn Geschwindigkeit unter Schwellwert fällt.
+      Kein Warten. Für Szenarien wo eine schnelle Reaktion wichtiger ist.
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.mein_speed_sensor # <── ANPASSEN
+        below: 5.0 # <── speed_threshold
+    action:
+      - service: geoweather.update
 
----
+  # ── 3. Periodisches Update im Stand ──────────────────────────────────────────
+  # Alle 30 Minuten aktualisieren, aber NUR wenn man steht (nicht fährt).
+  # Das ersetzt den alten "update_interval" Parameter der Integration.
+
+  - alias: "GeoWeather – Periodisches Update im Stand (alle 30 Min)"
+    description: >
+      Alle 30 Minuten ein Update, aber nur wenn das Fahrzeug steht.
+      Ersetzt den internen update_interval der Integration.
+    trigger:
+      - platform: time_pattern
+        minutes: "/30"
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.mein_speed_sensor # <── ANPASSEN
+        below: 5.0 # <── speed_threshold
+    action:
+      - service: geoweather.update
+
+  # ── 4. Kombination: Ankunft + periodisch ─────────────────────────────────────
+  # Empfohlene Kombination: Update nach 10 Min Stillstand + alle 60 Min im Stand.
+
+  - alias: "GeoWeather – Update nach Ankunft (10 Min)"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.mein_speed_sensor
+        below: 5.0
+        for:
+          minutes: 10
+    action:
+      - service: geoweather.update
+
+  - alias: "GeoWeather – Stündliches Update im Stand"
+    trigger:
+      - platform: time_pattern
+        minutes: "0" # jede volle Stunde
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.mein_speed_sensor
+        below: 5.0
+    action:
+      - service: geoweather.update
+
+  # ── 5. Update NUR wenn man steht UND zu Hause ist ────────────────────────────
+
+  - alias: "GeoWeather – Update zu Hause (stündlich)"
+    trigger:
+      - platform: time_pattern
+        minutes: "0"
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.mein_speed_sensor
+        below: 5.0
+      - condition: zone
+        entity_id: device_tracker.mein_tracker # <── ANPASSEN
+        zone: zone.home
+    action:
+      - service: geoweather.update
+
+# ── HINWEIS zum Fahren ────────────────────────────────────────────────────────
+# Wenn man fährt: KEINE der obigen Automations feuert (dank "below: 5.0"
+# Trigger/Bedingung). Die Integration selbst macht ebenfalls keine Updates.
+# → Im Fahrbetrieb werden die Sensoren eingefroren (letzter bekannter Wert).
+
 # =============================================================================
 # 🌦️ DASHBOARD: REGEN & STANDORT
 # =============================================================================
