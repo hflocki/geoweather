@@ -1,16 +1,18 @@
-"""DataUpdateCoordinator for GeoWeather v2.2.0."""
+"""DataUpdateCoordinator for GeoWeather v2.3.2"""
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, date, timezone
 import re
+from datetime import date, datetime, timedelta, timezone
+
 import aiohttp
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
     CONF_ALT_SENSOR,
+    CONF_ARRIVAL_DELAY,
     CONF_LAT_SENSOR,
     CONF_LON_SENSOR,
     CONF_MIN_SATELLITES,
@@ -18,11 +20,10 @@ from .const import (
     CONF_SPEED_SENSOR,
     CONF_SPEED_THRESHOLD,
     CONF_UPDATE_INTERVAL,
-    CONF_ARRIVAL_DELAY,
+    DEFAULT_ARRIVAL_DELAY,
     DEFAULT_MIN_SATELLITES,
     DEFAULT_SPEED_THRESHOLD,
     DEFAULT_UPDATE_INTERVAL,
-    DEFAULT_ARRIVAL_DELAY,
     DOMAIN,
     DWD_EVENT_TYPES,
     DWD_SEVERITY,
@@ -49,13 +50,13 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
 
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval)
         self.entry = entry
-        
+
         # --- State Trackers ---
         self.last_skip_reason: str | None = None
         self._radar_etag: str | None = None
         self._radar_bytes: bytes | None = None
         self._pollen_mapping = POLLEN_REGION_MAPPING
-        
+
         # --- v2.3.0 Pollen Trackers ---
         self.last_pollen_date: date | None = None
         self.last_pollen_pos: tuple[float, float] = (0.0, 0.0)
@@ -63,15 +64,20 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         self._last_move_time: datetime = datetime.now(timezone.utc)
         self._force_pollen_update: bool = False
 
+        # --- v2.3.2 Arrived Sensor ---
+        # True  = gerade angekommen, Standzeit läuft noch (wartet auf Delay)
+        # False = Standzeit abgelaufen, Update darf stattfinden (oder fährt)
+        self.arrived_waiting: bool = False
+
     def _extract_wind_info(self, warnings):
         """Extrahiert Wind-Level und km/h aus den DWD-Warnungen."""
         wind_data = {
             "level": 0,
             "speed_max": 0,
             "type": "Normal",
-            "description": "Keine Windwarnung"
+            "description": "Keine Windwarnung",
         }
-        
+
         for warn in warnings:
             ereignis = warn.get("ereignis", "").lower()
             if any(word in ereignis for word in ["wind", "sturm", "böen", "orkan"]):
@@ -79,26 +85,26 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                     wind_data["level"] = warn["schwere_level"]
                     wind_data["type"] = warn.get("ereignis", "Windwarnung")
                     wind_data["description"] = warn.get("headline", "")
-                    
+
                     # Suche nach km/h Angaben im Beschreibungstext
                     desc = warn.get("beschreibung", "")
                     match = re.search(r"(\d+)\s*km/h", desc)
                     if match:
                         wind_data["speed_max"] = int(match.group(1))
-                        
+
         return wind_data
 
     async def _async_update_data(self) -> dict:
         """Main update cycle - v2.3.1 Intelligence."""
         now = datetime.now(timezone.utc)
-        
+
         if not self._has_valid_fix():
             self.last_skip_reason = "Kein GPS-Fix (Sats < Min)"
             return self.data or {}
 
         lat = self._float_state(self._cfg(CONF_LAT_SENSOR))
         lon = self._float_state(self._cfg(CONF_LON_SENSOR))
-        
+
         if lat is None or lon is None:
             return self.data or {}
 
@@ -110,30 +116,48 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         radar_data = current_data.get("radar", {})
         warnings_data = current_data.get("warnings", {})
 
-        if not is_moving:
-            try:
-                async with aiohttp.ClientSession() as session:
-                    location = await self._fetch_location(session, lat, lon)
-                    warnings_data = await self._fetch_warnings(session, lat, lon)
-                    radar_data = await self._fetch_radar(session, lat, lon)
-                    weather_data = location 
-                    self.last_skip_reason = None
-            except Exception as exc:
-                _LOGGER.error("Fehler beim Wetter-Abruf: %s", exc)
-        else:
+        if is_moving:
+            # Fährt → merke Zeitpunkt, kein Update
             weather_data = (self.data or {}).get("location", {})
-            self._last_move_time = now 
+            self._last_move_time = now
+            self.arrived_waiting = False
+        else:
+            # Steht → prüfe ob Standzeit-Delay abgelaufen
+            stand_seconds = (now - self._last_move_time).total_seconds()
+            delay_seconds = float(arrival_delay) * 60.0
+
+            if delay_seconds == 0 or stand_seconds >= delay_seconds:
+                # Delay erfüllt (oder 0) → Update durchführen
+                self.arrived_waiting = False
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        location = await self._fetch_location(session, lat, lon)
+                        warnings_data = await self._fetch_warnings(session, lat, lon)
+                        radar_data = await self._fetch_radar(session, lat, lon)
+                        weather_data = location
+                        self.last_skip_reason = None
+                except Exception as exc:
+                    _LOGGER.error("Fehler beim Wetter-Abruf: %s", exc)
+            else:
+                # Noch innerhalb der Standzeit → warten
+                remaining = int((delay_seconds - stand_seconds) / 60) + 1
+                self.last_skip_reason = f"Standzeit-Delay: noch {remaining} min"
+                self.arrived_waiting = True
+                weather_data = (self.data or {}).get("location", {})
+                radar_data = current_data.get("radar", {})
+                warnings_data = current_data.get("warnings", {})
 
         # --- TEIL B: POLLEN ---
         current_pos = (round(lat, 2), round(lon, 2))
         stand_time_min = (now - self._last_move_time).total_seconds() / 60
-        
+        delay_min = float(arrival_delay)
+
         moved = current_pos != self.last_pollen_pos
         is_time_for_daily = now.hour >= 12 and self.last_pollen_date != now.date()
         is_forced = self._force_pollen_update
 
         pollen_should_update = not is_moving and (
-            is_forced or ((moved or is_time_for_daily) and stand_time_min >= arrival_delay)
+            is_forced or ((moved or is_time_for_daily) and stand_time_min >= delay_min)
         )
 
         # WICHTIG: Wir holen den Kreisnamen IMMER, damit die Attribute aktuell bleiben
@@ -165,16 +189,29 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
         # WIND INFO EXTRAHIEREN
         wind_info = self._extract_wind_info(warnings_data.get("warnungen", []))
 
+        # Niederschlag-Dict aus Radar-Daten aufbauen (einheitliche Schnittstelle fuer sensor.py)
+        niederschlag_data = {
+            "aktuell": radar_data.get("aktuell", 0.0),
+            "next_start": radar_data.get("next_start"),
+            "next_end": radar_data.get("next_end"),
+            "next_length": radar_data.get("next_length", 0),
+            "next_max_mmh": radar_data.get("next_max_mmh", 0.0),
+            "next_sum_mm": radar_data.get("next_sum_mm", 0.0),
+            "forecast_2h": radar_data.get("forecast_2h", {}),
+            "forecast": radar_data.get("forecast", {}),
+        }
+
         return {
             "location": weather_data,
             "radar": radar_data,
+            "niederschlag": niederschlag_data,
             "warnings": warnings_data,
             "pollen": pollen_data,
             "wind": wind_info,
             "gps": {"latitude": lat, "longitude": lon},
             "last_updated": now.isoformat(),
         }
-        
+
     async def _fetch_pollen(self, session: aiohttp.ClientSession, kreis: str) -> dict:
         """Sucht die Region-ID und ruft DWD Daten ab."""
         suche_ort = str(kreis).strip()
@@ -340,27 +377,36 @@ class GeoWeatherCoordinator(DataUpdateCoordinator):
                 self._radar_bytes = await resp.read()
                 self._radar_etag = resp.headers.get("ETag")
             elif resp.status != 304:
-                return {"aktuell": 0, "next_length": 0}
+                return {"aktuell": 0.0, "next_length": 0}
         if not self._radar_bytes:
-            return {"aktuell": 0, "next_length": 0}
+            return {"aktuell": 0.0, "next_length": 0}
 
         def _process():
             r = DWDRadar()
             r.load_from_bytes(self._radar_bytes)
-            res_data = r.get_next_precipitation(lat, lon)
+            # BUG-FIX: lat/lon korrekt uebergeben (waren vorher x/y vertauscht)
+            current = r.get_current_value(lat, lon)
+            next_niederschlag = r.get_next_precipitation(lat, lon)
+            forecast_2h = r.get_forecast_2h(lat, lon)
+            forecast_map = r.get_forecast_map(lat, lon)
             return {
-                "aktuell": r.get_current_value(lat, lon),
-                "forecast": r.get_forecast_map(lat, lon),
-                "next_length": res_data.get("length", 0),
-                "next_start": res_data.get("start"),
-                "next_end": res_data.get("end"),
-                "next_max_mmh": res_data.get("max", 0.0),
-                "next_sum_mm": res_data.get("sum", 0.0),
+                # Aktuell
+                "aktuell": current,
+                # Naechster Niederschlagsabschnitt
+                "next_length": next_niederschlag.get("length", 0),
+                "next_start": next_niederschlag.get("start"),
+                "next_end": next_niederschlag.get("end"),
+                "next_max_mmh": next_niederschlag.get("max", 0.0),
+                "next_sum_mm": next_niederschlag.get("sum", 0.0),
+                # 2h-Vorhersage komplett
+                "forecast_2h": forecast_2h,
+                # Volle Zeitreihe fuer Attribute
+                "forecast": forecast_map,
             }
 
         return await self.hass.async_add_executor_job(_process)
 
-    # --- Hilfsfunktionen (Einmalig definiert) ---
+    # --- Hilfsfunktionen ---
 
     def _cfg(self, key, default=None):
         return {**self.entry.data, **self.entry.options}.get(key, default)

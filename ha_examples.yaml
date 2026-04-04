@@ -1,139 +1,247 @@
 ###############################################################################
-# GeoWeather v2.3.0
+# GeoWeather v2.3.3
 # Diese Datei enthält alle Automatisierungen und Dashboard-Karten.
+# Den Block so in die automation.yaml kopieren nicht über gUI eingeben !
 ###############################################################################
 
 # =============================================================================
-# 🤖 AUTOMATISIERUNGEN (Optimiert für v2.3.0)
+# 🤖 AUTOMATISIERUNGEN
 # =============================================================================
 
-# HINWEIS: In v2.3.0 übernimmt die Integration das Warten nach der Ankunft
+# HINWEIS: In v2.3.3 übernimmt die Integration das Warten nach der Ankunft
 # (Arrival Delay) selbst. Diese Automation triggert nur noch den Abruf.
+#
+# Funktionsweise:
+#   binary_sensor.geoweather_moving          ON = fährt, OFF = steht
+#   binary_sensor.geoweather_arrived_waiting ON = angekommen, wartet Delay ab
+#                                            OFF = Delay abgelaufen → Update ok
+#
+# Der Coordinator führt das Update intern erst nach dem Delay durch.
+# Die Automationen triggern nur noch den Refresh – der Coordinator entscheidet,
+# ob die Zeit reif ist.
+#
+# Sonderfall delay=0: sofortiges Update, arrived_waiting bleibt immer OFF.
 
-alias: "GeoWeather: Zentraler Update-Trigger"
-description: "Triggert Updates im Stand. Die Standzeit-Sperre liegt im Coordinator."
-id: geoweather_v230_core_trigger
-trigger:
-  - platform: time_pattern
-    minutes: "/10"  # Prüft alle 10 Min auf Regen/Warnungen
-  - platform: state
-    entity_id: binary_sensor.geoweather_moving
-    from: "on"
-    to: "off"
-condition:
-  - condition: state
-    entity_id: binary_sensor.geoweather_moving
-    state: "off"
-action:
-  - action: geoweather.update
-    data: {}
-mode: skip
+# ─── Automation 1: Sofort-Update wenn Standzeit-Delay abgelaufen ─────────────
+- id: geoweather_v232_arrived_trigger
+  alias: "GeoWeather: Update nach Standzeit-Delay"
+  description: >
+    Triggert geoweather.update, sobald arrived_waiting von ON auf OFF wechselt.
+    Das bedeutet: Fahrzeug steht UND der konfigurierte Delay ist abgelaufen.
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.geoweather_arrived_waiting
+      from: "on"
+      to: "off"
+  condition:
+    # Nur auslösen wenn wirklich noch steht (nicht wieder losgefahren)
+    - condition: state
+      entity_id: binary_sensor.geoweather_moving
+      state: "off"
+  action:
+    - action: geoweather.update
+      data: {}
+  mode: single
 
-# Automation für Windwarnungen als Notification senden
-alias: "Sicherheit: Markise bei Wind einfahren"
-description: "Reagiert auf die Windgeschwindigkeit in den Attributen"
-triggers:
-  - trigger: numeric_state
-    entity_id: sensor.geoweather_wind_warnstatus
-    attribute: speed_max  
-    above: 45
-actions:
-  - action: notify.mobile_app_dein_handy # Beispiel-Aktion
-    data:
-      title: "Windwarnung!"
-      message: "Böen bis zu {{ state_attr('sensor.geoweather_wind_warnstatus', 'speed_max') }} km/h erkannt!"
+# ─── Automation 2: Periodischer Update im Stand (Regen/Warnungen aktuell halten) ─
+- id: geoweather_v232_periodic_trigger
+  alias: "GeoWeather: Periodischer Update im Stand"
+  description: >
+    Prüft alle 10 Minuten ob ein Update fällig ist.
+    Der Coordinator ignoriert den Call wenn der Delay noch läuft.
+  trigger:
+    - platform: time_pattern
+      minutes: "/10"
+  condition:
+    - condition: state
+      entity_id: binary_sensor.geoweather_moving
+      state: "off"
+    # Nur updaten wenn Delay schon abgelaufen (arrived_waiting = OFF)
+    - condition: state
+      entity_id: binary_sensor.geoweather_arrived_waiting
+      state: "off"
+  action:
+    - action: geoweather.update
+      data: {}
+  mode: single
+
+# ─── Automation 3: Sofort-Update bei delay=0 (direkt nach Stop) ──────────────
+- id: geoweather_v232_instant_on_stop
+  alias: "GeoWeather: Sofort-Update bei Ankunft (nur bei delay=0)"
+  description: >
+    Wenn Standzeit-Delay auf 0 eingestellt ist, triggert arrived_waiting nie.
+    Deshalb hier direkt auf moving OFF triggern.
+    Wenn delay > 0 ist, übernimmt Automation 1 – diese hier dann deaktivieren.
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.geoweather_moving
+      from: "on"
+      to: "off"
+  condition:
+    # arrived_waiting ist bei delay=0 sofort OFF → beide Automationen greifen nicht doppelt
+    - condition: state
+      entity_id: binary_sensor.geoweather_arrived_waiting
+      state: "off"
+  action:
+    - action: geoweather.update
+      data: {}
+  mode: single
+
+# ─── Automation 4: Sicherheit: Markise bei Wind einfahren ──────────────────
+- id: geoweather_wind_warning_awning
+  alias: "Sicherheit: Markise bei Wind einfahren"
+  description: "Reagiert auf die Windgeschwindigkeit in den Attributen"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.geoweather_wind_warnstatus
+      attribute: speed_max
+      above: 45
+  action:
+    - action: notify.mobile_app_dein_handy
+      data:
+        title: "Windwarnung!"
+        message: "Böen bis zu {{ state_attr('sensor.geoweather_wind_warnstatus', 'speed_max') }} km/h erkannt!"
+  mode: single
+
 ---
-
 # =============================================================================
 # 🌦️ DASHBOARD: REGEN & STANDORT
 # =============================================================================
 
-# 1. Regenvorhersage (Mushroom Style)
+# 1. Vorhersage Niederschlag kombiniert aktuell und  2h (Mushroom Style)
 type: custom:mushroom-template-card
 primary: |
-  {% set regenzustand = states('sensor.geoweather_regenvorhersage') %}
-  {% if regenzustand == 'Kein Regen' %} Alles trocken {% else %}
-    Regen ab {{ as_timestamp(regenzustand) | timestamp_custom('%H:%M') }} Uhr
+  {% set s_aktuell = 'sensor.geoweather_niederschlag_aktuell' %}
+  {% set s_2h = 'sensor.geoweather_niederschlag_vorhersage_2h' %}
+
+  {% if states(s_aktuell) | float(0) > 0 %}
+    Niederschlag: {{ states(s_aktuell) }} mm/h
+  {% elif state_attr(s_2h, 'rain_expected') %}
+    Regen in {{ state_attr(s_2h, 'next_rain_in_min') }} Min erwartet
+  {% else %}
+    Aktuell trocken
   {% endif %}
 secondary: |
-  {% set mm = state_attr('sensor.geoweather_regenvorhersage', 'next_sum_mm') | float(0) %}
-  {% if mm > 0 %}
-    Menge: {{ mm }} mm | Dauer: {{ state_attr('sensor.geoweather_regenvorhersage', 'next_length_min') }} min
+  {% set s_2h = 'sensor.geoweather_niederschlag_vorhersage_2h' %}
+  {% set s_legacy = 'sensor.geoweather_niederschlag_vorhersage' %}
+
+  {% if state_attr(s_2h, 'rain_expected') or states(s_aktuell) | float(0) > 0 %}
+    Dauer: ~{{ state_attr(s_2h, 'duration_min') }} Min | Max: {{ state_attr(s_2h, 'max_intensity_mmh') }} mm/h
   {% else %}
-    Intensität: {{ states('sensor.geoweather_niederschlag_aktuell') }} mm/h
+    Nächste 2 Stunden kein Regen
   {% endif %}
-icon: mdi:weather-pouring
-icon_color: "{{ 'disabled' if states('sensor.geoweather_regenvorhersage') == 'Kein Regen' else 'blue' }}"
-entity: sensor.geoweather_regenvorhersage
-tap_action:
-  action: more-info
+icon: |-
+  {% if states('sensor.geoweather_niederschlag_aktuell') | float(0) > 0 %}
+    mdi:weather-pouring
+  {% else %}
+    mdi:weather-rainy
+  {% endif %}
+icon_color: |-
+  {% if states('sensor.geoweather_niederschlag_aktuell') | float(0) > 0 %}
+    blue
+  {% elif state_attr('sensor.geoweather_niederschlag_vorhersage_2h', 'rain_expected') %}
+    light-blue
+  {% else %}
+    disabled
+  {% endif %}
+card_mod:
+  style: |
+    ha-card {
+      {% set entity = 'sensor.geoweather_niederschlag_vorhersage_2h' %}
+      {% set forecast = state_attr(entity, 'forecast_steps') %}
+      {% if forecast %}
+        {% set now_ts = now() | as_timestamp %}
+        {% set duration_sec = 7200 %}
+        background-image: linear-gradient(90deg,
+          rgba(0,0,0,0) 0%
+          {%- for time, value in forecast.items() -%}
+            {%- set pos = ((time | as_timestamp - now_ts) / duration_sec * 100) | round(1) -%}
+            {%- if pos >= 0 and pos <= 100 -%}
+              {%- set opacity = 0.35 if value > 0 else 0 -%}
+              {# Farbe wechselt von Hellblau zu Lila bei hoher Intensität #}
+              {%- set hue = 200 if value < 1 else 280 -%}
+              , hsla({{ hue }}, 80%, 50%, {{ opacity }}) {{ pos }}%
+            {%- endif -%}
+          {%- endfor -%}
+        );
+      {% endif %}
+    }
 
 ---
-
-# 2. Visualisierung (2h ApexChart)
-type: custom:apexcharts-card
-header:
-  show: true
-  title: Regenvorhersage (Nächste 2 Stunden)
-  show_states: true
-graph_span: 2h
-span:
-  start: minute
-series:
-  - entity: sensor.geoweather_niederschlag_aktuell
-    name: Intensität
-    unit: mm/h
-    data_generator: |
-      const forecast = entity.attributes.forecast;
-      if (!forecast) return [];
-      return Object.entries(forecast).map(([time, value]) => {
-        return [new Date(time).getTime(), value];
-      });
-    type: area
-    color: '#03a9f4'
-    curve: smooth
-
----
-
 # =============================================================================
 # ⚠️ DASHBOARD: WETTERWARNUNGEN
 # =============================================================================
 
 # 1. Warnungs-Icon (Dynamische Farbe & Blink-Effekt)
 type: custom:button-card
-entity: sensor.geoweather_wetterwarnungen_anzahl
+entity: sensor.geoweather_wetterwarnungen
 aspect_ratio: 1/1
+name: Warnungen
 show_label: true
 label: |
-  [[[ 
+  [[[
     const warnings = entity.attributes.aktive_warnungen;
     if (!warnings || warnings.length === 0) return 'Alles ok';
-    return warnings[0].ereignis; 
+    return warnings[0].ereignis;
   ]]]
-icon: |
-  [[[ return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' : 'mdi:shield-check'; ]]]
+icon: >
+  [[[ return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' :
+  'mdi:shield-check'; ]]]
 styles:
   card:
     - background-color: |
-        [[[ 
+        [[[
           const warnings = entity.attributes.aktive_warnungen;
           if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
           const level = warnings[0].schwere_level;
           if (level <= 1) return '#ffeb3b';
           if (level === 2) return '#fb8c00';
-          if (level >= 3) return '#e53935';
-          return 'var(--card-background-color)';
+          return '#e53935';
         ]]]
   icon:
-    - animation: |
-        [[[ return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out infinite' : 'none'; ]]]
+    - animation: >
+        [[[ return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out
+        infinite' : 'none'; ]]]
 
 ---
+#Status Karte Moving Senssor
+type: custom:mushroom-template-card
+entity: binary_sensor.geoweather_arrived_waiting
+primary: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
+    🚗 Unterwegs – kein Update
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+    ⏳ Warte {{ state_attr('binary_sensor.geoweather_arrived_waiting', 'remaining_min') }} min
+  {% else %}
+    ✅ Steht – Updates aktiv
+  {% endif %}
+secondary: >
+  Delay: {{ state_attr('binary_sensor.geoweather_arrived_waiting',
+  'arrival_delay_min') }} min | Stand: {{
+  (state_attr('binary_sensor.geoweather_arrived_waiting', 'stand_time_sec') /
+  60) | round(1) }} min
+icon: >
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %} mdi:car
 
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+  mdi:timer-sand
+
+  {% else %} mdi:map-marker-check {% endif %}
+icon_color: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %} orange
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %} yellow
+  {% else %} green {% endif %}
+grid_options:
+  columns: 12
+  rows: 1
+
+---
 # 2. Warnungs-Details (Markdown-Liste)
 type: markdown
-content: |
-  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen_anzahl', 'aktive_warnungen') %}
+content: >
+  {% set warnungen = state_attr('sensor.geoweather_wetterwarnungen',
+  'aktive_warnungen') %}
+
   {% if warnungen %}
     {% for w in warnungen %}
     ### ⚠️ {{ w.ereignis }} ({{ w.schwere }})
@@ -147,43 +255,71 @@ content: |
   {% endif %}
 
 ---
-# 3. Wind Warnung als Kachel
+# 3. Arrived-Status: Standzeit-Delay-Anzeige
+type: custom:mushroom-template-card
+entity: binary_sensor.geoweather_arrived_waiting
+primary: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
+    🚗 Unterwegs – kein Update
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+    ⏳ Angekommen – warte noch {{ state_attr('binary_sensor.geoweather_arrived_waiting', 'remaining_min') }} min
+  {% else %}
+    ✅ Steht – Updates aktiv
+  {% endif %}
+secondary: |
+  {% set delay = state_attr('binary_sensor.geoweather_arrived_waiting', 'arrival_delay_min') %}
+  {% set stand = state_attr('binary_sensor.geoweather_arrived_waiting', 'stand_time_sec') %}
+  Delay: {{ delay }} min | Standzeit: {{ (stand / 60) | round(1) }} min
+icon: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
+    mdi:car
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+    mdi:timer-sand
+  {% else %}
+    mdi:map-marker-check
+  {% endif %}
+icon_color: |
+  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
+    orange
+  {% elif is_state('binary_sensor.geoweather_arrived_waiting', 'on') %}
+    yellow
+  {% else %}
+    green
+  {% endif %}
+tap_action:
+  action: more-info
+
+---
+# 4. Wind Warnung als Kachel
 type: custom:button-card
 entity: sensor.geoweather_wind_warnstatus
 name: Wind-Sicherheit
 show_state: true
 show_label: true
 label: |
-  [[[ 
-    return states['sensor.geoweather_wind_warnstatus'].attributes.speed_max + ' km/h';
+  [[[
+    const g = entity.attributes.speed_max || 0;
+    return 'Böen: ' + g + ' km/h';
   ]]]
 styles:
   card:
-    - height: 100px
+    - height: 80px
     - background-color: |
         [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
-          if (level == 0) return 'rgba(0, 255, 0, 0.1)';
-          if (level <= 2) return 'rgba(255, 165, 0, 0.2)';
-          return 'rgba(255, 0, 0, 0.3)';
+          const level = entity.attributes.level || 0;
+          if (level == 0) return 'rgba(0,255,0,0.1)';
+          if (level <= 2) return 'rgba(255,165,0,0.2)';
+          return 'rgba(255,0,0,0.3)';
         ]]]
     - border: |
         [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
+          const level = entity.attributes.level || 0;
           if (level == 0) return '1px solid green';
           if (level <= 2) return '2px solid orange';
           return '3px solid red';
         ]]]
-  icon:
-    - color: |
-        [[[
-          let level = states['sensor.geoweather_wind_warnstatus'].attributes.level;
-          if (level == 0) return 'green';
-          if (level <= 2) return 'orange';
-          return 'red';
-        ]]]
----
 
+---
 # =============================================================================
 # 🌸 DASHBOARD: POLLENFLUG
 # =============================================================================
@@ -209,58 +345,82 @@ styles:
           const val = parseFloat(entity.state);
           if (val <= 1.5) return '#ffeb3b';
           if (val <= 2.5) return '#fb8c00';
-          if (val > 2.5)  return '#e53935';
-          return 'var(--card-background-color)';
+          return '#e53935';
         ]]]
 
 ---
-
 # 2. Detaillierte Pollen-Übersicht (Grid mit Button-Templates)
-type: vertical-stack
+type: grid
+columns: 3
+square: true
 cards:
-  - type: grid
-    columns: 3
-    square: true
-    cards:
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_birke
-        name: Birke
-        icon: mdi:tree
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_graser
-        name: Gräser
-        icon: mdi:grass
-      - type: custom:button-card
-        template: pollen_style
-        entity: sensor.geoweather_pollen_roggen
-        name: Roggen
-        icon: mdi:barley
-      # ... hier die weiteren Sensoren analog einfügen ...
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_birke
+    name: Birke
+    icon: mdi:tree
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_graeser
+    name: Gräser
+    icon: mdi:grass
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_roggen
+    name: Roggen
+    icon: mdi:barley
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_erle
+    name: Erle
+    icon: mdi:leaf
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_hasel
+    name: Hasel
+    icon: mdi:flower
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_esche
+    name: Esche
+    icon: mdi:tree-outline
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_beifuss
+    name: Beifuß
+    icon: mdi:sprout
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_ambrosia
+    name: Ambrosia
+    icon: mdi:alert-octagon-outline
+  - type: custom:button-card
+    template: pollen_style
+    entity: sensor.geoweather_pollen_eiche
+    name: Eiche
+    icon: mdi:nature
 
 ---
-
 # =============================================================================
 # 🎨 TEMPLATES (Muss in die Dashboard 'Raw-Konfiguration')
 # =============================================================================
 # button_card_templates:
-  pollen_style:
-    aspect_ratio: 1/1
-    show_label: true
-    styles:
-      icon:
-        - color: |
-            [[[
-              const v = parseFloat(entity.state);
-              if (v <= 1) return '#c5e566';
-              if (v <= 2) return '#ffeb3b';
-              if (v <= 4) return '#fb8c00';
-              return '#e53935';
-            ]]]
-    label: |
-      [[[
-        const h = entity.state;
-        const m = entity.attributes.tomorrow || '?';
-        return "H: " + h + " | M: " + m;
-      ]]]
+pollen_style:
+  aspect_ratio: 1/1
+  show_label: true
+  styles:
+    icon:
+      - color: |
+          [[[
+            const v = parseFloat(entity.state);
+            if (v <= 1) return '#c5e566';
+            if (v <= 2) return '#ffeb3b';
+            if (v <= 4) return '#fb8c00';
+            return '#e53935';
+          ]]]
+  label: |
+    [[[
+      const h = entity.state;
+      const m = entity.attributes.tomorrow || '?';
+      return "H: " + h + " | M: " + m;
+    ]]]

@@ -13,12 +13,13 @@ from .coordinator import GeoWeatherCoordinator
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["sensor", "binary_sensor"]
 
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up GeoWeather from a config entry."""
-    
+
     # 1. Coordinator Instanz erstellen
     coordinator = GeoWeatherCoordinator(hass, entry)
-    
+
     # 2. Ersten Datenabruf beim Start ausführen
     await coordinator.async_config_entry_first_refresh()
 
@@ -43,26 +44,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # 6. Plattformen (Sensor, etc.) laden
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    
+
     # 7. Listener für Konfigurationsänderungen
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     return True
 
+
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload integration when options change."""
     await hass.config_entries.async_reload(entry.entry_id)
 
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    
+
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
-        
+
         # Services nur entfernen, wenn keine Instanz mehr aktiv ist
         if not hass.data.get(DOMAIN):
             hass.services.async_remove(DOMAIN, SERVICE_UPDATE)
             hass.services.async_remove(DOMAIN, "update_pollen_now")
-            
+
     return unload_ok
