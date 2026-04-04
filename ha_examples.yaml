@@ -99,50 +99,69 @@
 # 🌦️ DASHBOARD: REGEN & STANDORT
 # =============================================================================
 
-# 1. Regenvorhersage (Mushroom Style)
+# 1. Regenvorhersage aktuell und Vorhersage 2h (Mushroom Style)
 type: custom:mushroom-template-card
 primary: |
-  {% set regenzustand = states('sensor.geoweather_regenvorhersage') %}
-  {% if regenzustand == 'Kein Regen' %} Alles trocken {% else %}
-    Regen ab {{ as_timestamp(regenzustand) | timestamp_custom('%H:%M') }} Uhr
+  {% set s_aktuell = 'sensor.geoweather_niederschlag_aktuell' %}
+  {% set s_2h = 'sensor.geoweather_niederschlag_vorhersage_2h' %}
+
+  {% if states(s_aktuell) | float(0) > 0 %}
+    Niederschlag: {{ states(s_aktuell) }} mm/h
+  {% elif state_attr(s_2h, 'rain_expected') %}
+    Regen in {{ state_attr(s_2h, 'next_rain_in_min') }} Min erwartet
+  {% else %}
+    Aktuell trocken
   {% endif %}
 secondary: |
-  {% set mm = state_attr('sensor.geoweather_regenvorhersage', 'next_sum_mm') | float(0) %}
-  {% if mm > 0 %}
-    Menge: {{ mm }} mm | Dauer: {{ state_attr('sensor.geoweather_regenvorhersage', 'next_length_min') }} min
+  {% set s_2h = 'sensor.geoweather_niederschlag_vorhersage_2h' %}
+  {% set s_legacy = 'sensor.geoweather_niederschlag_vorhersage' %}
+
+  {% if state_attr(s_2h, 'rain_expected') or states(s_aktuell) | float(0) > 0 %}
+    Dauer: ~{{ state_attr(s_2h, 'duration_min') }} Min | Max: {{ state_attr(s_2h, 'max_intensity_mmh') }} mm/h
   {% else %}
-    Intensität: {{ states('sensor.geoweather_niederschlag_aktuell') }} mm/h
+    Nächste 2 Stunden kein Regen
   {% endif %}
-icon: mdi:weather-pouring
-icon_color: "{{ 'disabled' if states('sensor.geoweather_regenvorhersage') == 'Kein Regen' else 'blue' }}"
-entity: sensor.geoweather_regenvorhersage
-tap_action:
-  action: more-info
+icon: |-
+  {% if states('sensor.geoweather_niederschlag_aktuell') | float(0) > 0 %}
+    mdi:weather-pouring
+  {% else %}
+    mdi:weather-rainy
+  {% endif %}
+icon_color: >-
+  {% if states('sensor.geoweather_niederschlag_aktuell') | float(0) > 0 %}
+    blue
+  {% elif state_attr('sensor.geoweather_niederschlag_vorhersage_2h',
+  'rain_expected') %}
+    light-blue
+  {% else %}
+    disabled
+  {% endif %}
+card_mod:
+  style: |
+    ha-card {
+      {% set entity = 'sensor.geoweather_niederschlag_vorhersage_2h' %}
+      {% set forecast = state_attr(entity, 'forecast_steps') %}
+      {% if forecast %}
+        {% set now_ts = now() | as_timestamp %}
+        {% set duration_sec = 7200 %}
+        background-image: linear-gradient(90deg, 
+          rgba(0,0,0,0) 0%
+          {%- for time, value in forecast.items() -%}
+            {%- set pos = ((time | as_timestamp - now_ts) / duration_sec * 100) | round(1) -%}
+            {%- if pos >= 0 and pos <= 100 -%}
+              {%- set opacity = 0.35 if value > 0 else 0 -%}
+              {# Farbe wechselt von Hellblau zu Lila bei hoher Intensität #}
+              {%- set hue = 200 if value < 1 else 280 -%}
+              , hsla({{ hue }}, 80%, 50%, {{ opacity }}) {{ pos }}%
+            {%- endif -%}
+          {%- endfor -%}
+        );
+      {% endif %}
+    }
+grid_options:
+  columns: 12
+  rows: 1
 
----
-
-# 2. Visualisierung (2h ApexChart)
-type: custom:apexcharts-card
-header:
-  show: true
-  title: Regenvorhersage (Nächste 2 Stunden)
-  show_states: true
-graph_span: 2h
-span:
-  start: minute
-series:
-  - entity: sensor.geoweather_niederschlag_aktuell
-    name: Intensität
-    unit: mm/h
-    data_generator: |
-      const forecast = entity.attributes.forecast;
-      if (!forecast) return [];
-      return Object.entries(forecast).map(([time, value]) => {
-        return [new Date(time).getTime(), value];
-      });
-    type: area
-    color: '#03a9f4'
-    curve: smooth
 
 ---
 
@@ -153,6 +172,7 @@ series:
 # 1. Warnungs-Icon (Dynamische Farbe & Blink-Effekt)
 type: custom:button-card
 entity: sensor.geoweather_wetterwarnungen_anzahl
+name: Wetterwarnung
 aspect_ratio: 1/1
 show_label: true
 label: |
@@ -199,35 +219,9 @@ content: |
 
 ---
 
-# 3. Fahrstatus-Karte (zeigt ob steht oder fährt)
-type: custom:mushroom-template-card
-entity: binary_sensor.geoweather_moving
-primary: |
-  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
-    🚗 Unterwegs – kein Update
-  {% else %}
-    ✅ Steht – Updates per Automation aktiv
-  {% endif %}
-secondary: |
-  Geschwindigkeit: {{ states('sensor.mein_speed_sensor') }} km/h
-icon: |
-  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
-    mdi:car
-  {% else %}
-    mdi:map-marker-check
-  {% endif %}
-icon_color: |
-  {% if is_state('binary_sensor.geoweather_moving', 'on') %}
-    orange
-  {% else %}
-    green
-  {% endif %}
-tap_action:
-  action: more-info
-
 ---
 
-# 4. Wind Warnung als Kachel
+# 3. Wind Warnung als Kachel
 type: custom:button-card
 entity: sensor.geoweather_wind_warnstatus
 name: Wind-Sicherheit
