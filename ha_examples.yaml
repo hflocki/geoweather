@@ -63,7 +63,7 @@
   action:
     - action: geoweather.update
       data: {}
-  mode: skip
+  mode: single
 
 # ─── Automation 3: Sofort-Update bei delay=0 (direkt nach Stop) ──────────────
 - id: geoweather_v232_instant_on_stop
