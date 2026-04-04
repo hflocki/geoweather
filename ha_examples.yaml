@@ -106,13 +106,12 @@ primary: |
     Aktuell trocken
   {% endif %}
 secondary: |
+  {# FIX: s_aktuell muss auch hier definiert werden! #}
+  {% set s_aktuell = 'sensor.geoweather_niederschlag_aktuell' %}
   {% set s_2h = 'sensor.geoweather_niederschlag_vorhersage_2h' %}
-  {% set s_legacy = 'sensor.geoweather_niederschlag_vorhersage' %}
-
-  {% set s_aktuell = 'sensor.geoweather_niederschlag_vorhersage' %} 
 
   {% if state_attr(s_2h, 'rain_expected') or states(s_aktuell) | float(0) > 0 %}
-     Dauer: ~{{ state_attr(s_2h, 'duration_min') }} Min | Max: {{ state_attr(s_2h, 'max_intensity_mmh') }} mm/h
+    Dauer: ~{{ state_attr(s_2h, 'duration_min') }} Min | Max: {{ state_attr(s_2h, 'max_intensity_mmh') }} mm/h
   {% else %}
     Nächste 2 Stunden kein Regen
   {% endif %}
@@ -125,8 +124,7 @@ icon: |-
 icon_color: >-
   {% if states('sensor.geoweather_niederschlag_aktuell') | float(0) > 0 %}
     blue
-  {% elif state_attr('sensor.geoweather_niederschlag_vorhersage_2h',
-  'rain_expected') %}
+  {% elif state_attr('sensor.geoweather_niederschlag_vorhersage_2h', 'rain_expected') %}
     light-blue
   {% else %}
     disabled
@@ -142,22 +140,20 @@ card_mod:
         background-image: linear-gradient(90deg, 
           rgba(0,0,0,0) 0%
           {%- for time, value in forecast.items() -%}
-            {%- set pos = ((time | as_timestamp - now_ts) / duration_sec * 100) | round(1) -%}
+            {%- set ts = time | as_timestamp(0) -%}
+            {%- set pos = ((ts - now_ts) / duration_sec * 100) | round(1) -%}
             {%- if pos >= 0 and pos <= 100 -%}
-              {%- set opacity = 0.35 if value > 0 else 0 -%}
-              {# Farbe wechselt von Hellblau zu Lila bei hoher Intensität #}
+              {# Opazität leicht erhöht für bessere Sichtbarkeit #}
+              {%- set opacity = 0.5 if value > 0 else 0 -%}
               {%- set hue = 200 if value < 1 else 280 -%}
               , hsla({{ hue }}, 80%, 50%, {{ opacity }}) {{ pos }}%
             {%- endif -%}
           {%- endfor -%}
-        );
+          {# Abschluss des Gradients zur Sicherheit #}
+          , rgba(0,0,0,0) 100%
+        ) !important;
       {% endif %}
     }
-grid_options:
-  columns: 12
-  rows: 1
-
-
 
 ---
 # =============================================================================
