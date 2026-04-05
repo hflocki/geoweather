@@ -168,29 +168,58 @@ aspect_ratio: 1/1
 show_label: true
 label: |
   [[[
-    const warnings = entity.attributes.warnungen;
+    const warnings = entity.attributes.aktive_warnungen;
     if (!warnings || warnings.length === 0) return 'Alles ok';
     return warnings[0].ereignis;
   ]]]
-icon: >
-  [[[ return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' :
-  'mdi:shield-check'; ]]]
+icon: |
+  [[[ 
+    return (parseInt(entity.state) > 0) ? 'mdi:alert-decagram' : 'mdi:shield-check'; 
+  ]]]
 styles:
   card:
     - background-color: |
         [[[
-          const warnings = entity.attributes.warnungen;
+          const warnings = entity.attributes.aktive_warnungen;
           if (!warnings || warnings.length === 0) return 'var(--card-background-color)';
-          const level = warnings[0].schwere_level;
-          if (level <= 1) return '#ffeb3b';
-          if (level === 2) return '#fb8c00';
-          if (level >= 3) return '#e53935';
+          
+          const level = parseInt(warnings[0].schwere_level);
+          if (level <= 1) return '#ffeb3b'; // Gelb
+          if (level === 2) return '#fb8c00'; // Orange
+          if (level >= 3) return '#e53935'; // Rot
           return 'var(--card-background-color)';
         ]]]
   icon:
-    - animation: >
-        [[[ return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out
-        infinite' : 'none'; ]]]
+    - color: |
+        [[[
+          const warnings = entity.attributes.aktive_warnungen;
+          if (!warnings || warnings.length === 0) return '#c5e566'; // Grün-Ton für "Sicher"
+          const level = parseInt(warnings[0].schwere_level);
+          return (level <= 2) ? 'black' : 'white'; // Schwarz bei Gelb/Orange, sonst Weiß
+        ]]]
+    - animation: |
+        [[[ 
+          return (parseInt(entity.state) > 0) ? 'blink 2s ease-in-out infinite' : 'none'; 
+        ]]]
+  name:
+    - font-weight: bold
+    - color: |
+        [[[
+          const warnings = entity.attributes.aktive_warnungen;
+          if (!warnings || warnings.length === 0) return 'white';
+          const level = parseInt(warnings[0].schwere_level);
+          return (level <= 2) ? 'black' : 'white';
+        ]]]
+  label:
+    - font-size: 14px
+    - font-weight: bold
+    - color: |
+        [[[
+          const warnings = entity.attributes.aktive_warnungen;
+          if (!warnings || warnings.length === 0) return 'white';
+          const level = parseInt(warnings[0].schwere_level);
+          return (level <= 2) ? 'black' : 'white';
+        ]]]
 
 
 ---
