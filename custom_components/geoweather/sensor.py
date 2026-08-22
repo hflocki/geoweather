@@ -105,7 +105,21 @@ class GeoWeatherSensor(CoordinatorEntity, SensorEntity):
         if key == "warnungen_anzahl": return {"aktive_warnungen": data.get("warnings", {}).get("warnungen", [])}
         if key == "standort": return {"kreis": data.get("location", {}).get("kreis"), "warncellid": data.get("location", {}).get("warncellid")}
         if key == "pollen_gesamt": return {"dwd_region_id": pollen.get("dwd_region_id"), "dwd_teilregion": pollen.get("dwd_teilregion"), "kreis": pollen.get("aktueller_kreis")}
-        if key.startswith("pollen_"):
+        if key.startswith("pollen_") and key != "pollen_gesamt":
             p_key = key.replace("pollen_", "")
-            return {"today": pollen.get(f"{p_key}_today", 0.0), "tomorrow": pollen.get(f"{p_key}_tomorrow", 0.0), "dayafter_to": pollen.get(f"{p_key}_dayafter_to", 0.0)}
+            
+            # Fließkommazahlen zu Ganzzahlen (0-6) für die Karte wandeln
+            val_today = int(round(float(pollen.get(f"{p_key}_today", 0.0))))
+            val_tomorrow = int(round(float(pollen.get(f"{p_key}_tomorrow", 0.0))))
+            val_dayafter = int(round(float(pollen.get(f"{p_key}_dayafter_to", 0.0))))
+
+            return {
+                "today": val_today,
+                "tomorrow": val_tomorrow,
+                "dayafter_to": val_dayafter,
+                # Spezifische Attribute für die pollenprognos-card:
+                "forecast_today": val_today,
+                "forecast_tomorrow": val_tomorrow,
+                "value": val_today,
+            }
         return None
