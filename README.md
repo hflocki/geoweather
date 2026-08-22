@@ -167,7 +167,7 @@ Erzwingt ein sofortiges Update der Pollendaten, unabhängig von Position oder Ta
 ## 🎨 Dashboards & Cards
 
 ### Einbindung in `pollenprognos-card`
-Möchtest du die beliebte Lovelace-Karte [pollenprognos-card](https://github.com/daltonfury42/pollenprognos-card) nutzen, um die Vorhersage visuell darzustellen? 
+Möchtest du die beliebte Lovelace-Karte [pollenprognos-card]([https://github.com/krissen/pollenprognos-card]) nutzen, um die Vorhersage visuell darzustellen? 
 
 Da die Karte fest nach dem DWD-Entity-Muster sucht, stellt GeoWeather eine einfache Anleitung bereit, um virtuelles Alias-Mapping (Template-Sensoren) in Home Assistant anzulegen.
 
