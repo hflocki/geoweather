@@ -88,6 +88,7 @@ Füge den folgenden Block in deine `templates.yaml` (oder unter `template:` in d
 
 ```
 
+Karte für Dashboard
 ```yaml
 
 type: custom:pollenprognos-card
