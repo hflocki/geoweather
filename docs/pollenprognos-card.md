@@ -86,6 +86,9 @@ Füge den folgenden Block in deine `templates.yaml` (oder unter `template:` in d
       state_tomorrow: "{{ state_attr('sensor.geoweather_pollen_eiche', 'tomorrow') | default(state_attr('sensor.geoweather_pollen_eiche', 'state_tomorrow')) | int(0) }}"
       state_in_2_days: "{{ state_attr('sensor.geoweather_pollen_eiche', 'dayafter_to') | default(state_attr('sensor.geoweather_pollen_eiche', 'state_in_2_days')) | int(0) }}"
 
+```
+
+```yaml
 
 type: custom:pollenprognos-card
 service: dwd
@@ -120,3 +123,5 @@ levels_colors:
   - '#FF6E33'
   - '#FF6140'
   - '#FF001C'
+
+```
