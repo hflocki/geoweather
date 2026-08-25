@@ -21,8 +21,6 @@ Da **GeoWeather** die Daten aus dem DWD intern auf einer erweiterten Skala von `
 
 Füge den folgenden Block in deine `templates.yaml` ein. Wir nutzen stellvertretend die Region-ID `11` (Berlin/Brandenburg) als Platzhalter.
 
-> **Wichtig:** Achte darauf, dass dieser Block eingerückt unter der Kategorie `- sensor:` in deiner `templates.yaml` steht!
-
 ```yaml
 # ── DWD Pollenprognos-Card Aliase (Region 11 - Exakte Namen & Skalenumrechnung) ──
 - sensor:
@@ -142,3 +140,75 @@ Füge den folgenden Block in deine `templates.yaml` ein. Wir nutzen stellvertret
         state_in_2_days: >
           {% set v = state_attr('sensor.geoweather_pollen_eiche', 'dayafter_to') | default(state_attr('sensor.geoweather_pollen_eiche', 'state_in_2_days')) | int(0) %}
           {{ 0 if v == 0 else 1 if v <= 2 else 2 if v <= 4 else 3 }}
+
+```
+
+## 2. Pollenprognosscard in Frontend Beispiel
+```yaml
+integration: dwd
+region_id: '11'
+entity_prefix: ''
+entity_suffix: ''
+allergens:
+  - erle
+  - ambrosia
+  - esche
+  - birke
+  - hasel
+  - graeser
+  - beifuss
+  - roggen
+minimal: false
+minimal_gap: 35
+background_color: ''
+icon_size: 48
+text_size_ratio: 1
+levels_colors:
+  - '#FFE55A'
+  - '#FFC84E'
+  - '#FFA53F'
+  - '#FF6E33'
+  - '#FF6140'
+  - '#FF001C'
+levels_empty_color: '#17d214'
+levels_thickness: 35
+allergen_colors:
+  - '#17d214'
+  - '#FFE55A'
+  - '#FFC84E'
+  - '#FFA53F'
+  - '#FF6E33'
+  - '#FF6140'
+  - '#FF001C'
+icon_in_ring: true
+show_text_allergen: true
+show_value_text: true
+show_value_numeric: false
+show_value_numeric_in_circle: false
+show_empty_days: false
+debug: false
+show_version: true
+days_to_show: 2
+days_relative: true
+days_abbreviated: false
+days_uppercase: false
+days_boldfaced: false
+pollen_threshold: 0.5
+sort: value_descending
+allergy_risk_top: true
+allergens_abbreviated: true
+date_locale: de
+title: false
+phrases:
+  full: {}
+  short: {}
+  levels: []
+  days: {}
+  no_information: ''
+type: custom:pollenprognos-card
+service: dwd
+show_state: true
+allergen_outline_color: '#eff5ef'
+allergen_color_mode: custom
+
+```
