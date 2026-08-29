@@ -8,9 +8,7 @@
     <img src="https://img.shields.io/github/v/release/hflocki/geoweather" alt="Latest Release">
     <a href="https://www.home-assistant.io"><img src="https://img.shields.io/badge/Home%20Assistant-2023.6%2B-blue" alt="HA Version"></a>
     <a href="https://discord.gg/5JUWSw79Rq"><img src="https://img.shields.io/discord/1484194968385093746?color=5865F2&label=Join%20Discord&logo=discord&logoColor=white" alt="Discord"></a>
-    <a href="https://www.buymeacoffee.com/hflocki">
-  <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee">
-</a>
+   
   </p>
 </div>
 
@@ -184,3 +182,8 @@ Inspiriert von:
 - [DWD Precipitation Forecast](https://github.com/stoppegp/ha-dwd-precipitation-forecast)
 - [DWD Weather](https://github.com/FL550/dwd_weather)
 - [hass-geolocator](https://github.com/SmartyVan/hass-geolocator)
+
+
+<a href="https://www.buymeacoffee.com/hflocki" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="60" width="217">
+</a>
